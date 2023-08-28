@@ -1,0 +1,18 @@
+<resources>
+  <string name="app_name">SoundChecker</string>
+  <string name="mqa_player">MQA File Player</string>
+  <string name="dsd_player">DSD File Player</string>
+  <string name="select">SELECT</string>
+  <string name="start">START</string>
+  <string name="stop">STOP</string>
+  <string name="file_not_selected">Please select a file</string>
+  <string name="sdk_required">Error: Minimum SDK %1$d is required</string>
+  <string name="connect_usb">Please connect USB device</string>
+  <string name="no_bit_perfect_mixer_attr">No bit-perfect mixer attribute found for the device</string>
+  <string name="unable_to_open_selected_file">Unable to open selected file</string>
+  <string name="unable_to_parse_selected_file">Unable to parse selected file</string>
+  <string name="test_resonance">Test Resonance</string>
+  <string name="test_harmonic_distortion">Test THD and SNR</string>
+  <string name="auto_select">Auto Select</string>
+  <string name="missing_record_permission">Missing recording permission</string>
+</resources>

@@ -1,0 +1,255 @@
+/**
+ * Copyright 2023 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.android.soundchecker
+
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.media.AudioManager.OnAudioFocusChangeListener
+import android.net.Uri
+import android.os.Bundle
+import android.os.Handler
+import android.os.HandlerThread
+import android.os.Looper
+import android.os.Message
+import android.os.SystemClock
+import android.provider.OpenableColumns
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.unit.dp
+
+/**
+ * Base class for selecting file and playback. Note this file is a base class for UI related
+ * operation. It doesn't contain the functionality of playback. The child class should implement
+ * playback start and stop by overriding `onPlaybackButtonClicked`.
+ */
+open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListener {
+    companion object {
+        // Messages that are handled by handler
+        const val ON_PLAYBACK_STATE_CHANGED = 1
+        const val START_PLAYBACK = 2
+        const val STOP_PLAYBACK = 3
+        const val UPDATE_UI = 10
+    }
+
+    protected val mAttrs = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).build()
+
+    protected var mFile: Uri? = null
+    protected var mIsPlaying = false
+    protected var mAudioManager: AudioManager? = null
+
+    private var mFocusRequest: AudioFocusRequest? = null
+
+    private val mMsgHandlerThread = HandlerThread("audioSample_FilePlayer_MsgHandler")
+    private var mHandler: MsgHandler? = null
+
+    private var mMsg = mutableStateOf("")
+    private var mPlaybackButtonText = mutableStateOf("")
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            Scaffold(
+                    topBar = {
+                        TopAppBar(title = { Text(title.toString()) },
+                                modifier = Modifier.shadow(elevation = 4.dp))
+                    }
+            ) { paddingValues ->
+                Column(modifier = Modifier.padding(paddingValues = paddingValues)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        var fileName by remember { mutableStateOf("") }
+                        val pickFileLauncher = rememberLauncherForActivityResult(
+                                ActivityResultContracts.GetContent()
+                        ) { uri ->
+                            if (uri != null) {
+                                mFile = uri
+                                fileName = getSelectedFileName()
+                                mMsg.value = getSelectedFileUnplayableReason()
+                            }
+                        }
+                        Button(onClick = {
+                            pickFileLauncher.launch("*/*")
+                        }) {
+                            Text(text = getString(R.string.select))
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        Text(text = fileName)
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    mMsg.value = getSelectedFileUnplayableReason()
+                    mPlaybackButtonText.value = getString(R.string.start)
+                    var msg by mMsg
+                    var playbackButtonText by mPlaybackButtonText
+                    Button(
+                            onClick = { onPlaybackButtonClicked() },
+                            enabled = msg.isEmpty()
+                    ) {
+                        Text(text = playbackButtonText)
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text(text = msg)
+                }
+            }
+        }
+        mMsgHandlerThread.start()
+        mHandler = MsgHandler(mMsgHandlerThread.looper)
+        mAudioManager = getSystemService(AudioManager::class.java) as AudioManager
+        mFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(mAttrs)
+                .setAcceptsDelayedFocusGain(true)
+                .setWillPauseWhenDucked(false)
+                .setOnAudioFocusChangeListener(this, mHandler!!)
+                .build()
+    }
+
+    override fun onDestroy() {
+        mMsgHandlerThread.quitSafely()
+        super.onDestroy()
+    }
+
+    fun getHandler(): Handler {
+        return mHandler!!
+    }
+
+    /**
+     * Returns the reason why the current file is not playable. Returns empty string if the selected
+     * file is playable.
+     */
+    open fun getSelectedFileUnplayableReason(): String {
+        if (mFile == null) {
+            return getString(R.string.file_not_selected)
+        }
+        return ""
+    }
+
+    open fun start() {
+        mAudioManager!!.requestAudioFocus(mFocusRequest!!)
+        mIsPlaying = true
+        mPlaybackButtonText.value = getString(R.string.stop)
+    }
+
+    open fun stop() {
+        mIsPlaying = false
+        mPlaybackButtonText.value = getString(R.string.start)
+        mAudioManager!!.abandonAudioFocusRequest(mFocusRequest!!)
+    }
+
+    private fun getSelectedFileName(): String {
+        if (mFile == null) {
+            return ""
+        }
+        val cursor = contentResolver.query(mFile!!, null, null, null, null)
+        val index = cursor!!.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        cursor.moveToFirst()
+        val name = cursor.getString(index)
+        cursor.close()
+        return name
+    }
+
+    private fun onPlaybackButtonClicked() {
+        sendMsg(ON_PLAYBACK_STATE_CHANGED, 0, 0, null, 0)
+    }
+
+    protected fun sendStopPlaybackMsg(delay: Int) {
+        sendMsg(STOP_PLAYBACK, 0, 0, null, delay)
+    }
+
+    protected fun sendUpdateUIMsg(delay: Int) {
+        sendMsg(UPDATE_UI, 0, 0, null, delay)
+    }
+
+    private fun sendMsg(msg: Int, arg1: Int, arg2: Int, obj: Object?, delay: Int) {
+        val time = SystemClock.uptimeMillis() + delay
+        mHandler!!.sendMessageAtTime(mHandler!!.obtainMessage(msg, arg1, arg2, obj), time)
+    }
+
+    inner class MsgHandler constructor(
+            looper: Looper
+    ) : Handler(looper) {
+        override fun handleMessage(msg: Message) {
+            when (msg.what) {
+                ON_PLAYBACK_STATE_CHANGED -> {
+                    if (mIsPlaying) {
+                        stop()
+                    } else {
+                        start()
+                    }
+                }
+
+                START_PLAYBACK -> {
+                    if (!mIsPlaying) { // Only start when it is not playing
+                        start()
+                    }
+                }
+
+                STOP_PLAYBACK -> {
+                    if (mIsPlaying) { // Only stop when it is playing
+                        stop()
+                    }
+                }
+
+                UPDATE_UI -> {
+                    mMsg.value = getSelectedFileUnplayableReason()
+                    if (!mIsPlaying) {
+                        mPlaybackButtonText.value = getString(R.string.start)
+                    }
+                }
+
+                else -> {
+                    // Undefined message, ignore
+                }
+            }
+        }
+    }
+
+    override fun onAudioFocusChange(focusChanged: Int) {
+        when (focusChanged) {
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                sendStopPlaybackMsg(0)
+            }
+
+            else -> {
+                // Need to handle other cases
+            }
+        }
+    }
+}
