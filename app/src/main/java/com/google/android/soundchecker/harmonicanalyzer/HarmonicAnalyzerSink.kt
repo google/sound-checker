@@ -49,16 +49,18 @@ class HarmonicAnalyzerSink : AudioSink() {
     }
 
     override fun stop() {
-        mThread!!.stop()
+        mThread?.stop()
     }
 
     fun runAudioLoop() {
         var count = 0
-        while (mThread!!.isEnabled()) {
+        while (mThread?.isEnabled() != true) {
+            val audioSource = mAudioSource!!
+            val buffer = mBuffer!!
             // pull audio from source
-            val framesRead = mAudioSource!!.render(mBuffer!!, 0, 1, mFftSize)
+            val framesRead = audioSource.render(buffer, 0, 1, mFftSize)
             // Analyze it
-            val result = mAnalyzer.analyze(mBuffer!!, framesRead, mFundamentalBin)
+            val result = mAnalyzer.analyze(buffer, framesRead, mFundamentalBin)
             fireListeners(count++, result)
         }
     }
@@ -77,7 +79,7 @@ class HarmonicAnalyzerSink : AudioSink() {
         return (mSampleRate * bin / mFftSize).toDouble()
     }
 
-    fun calculateNearestBin(frequency: Double): Int {
+    private fun calculateNearestBin(frequency: Double): Int {
         return (mFftSize * frequency / mSampleRate).roundToInt()
     }
 

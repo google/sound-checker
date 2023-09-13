@@ -16,6 +16,8 @@
 
 package com.google.android.soundchecker.utils
 
+import android.util.Log
+
 abstract class AudioThread : Runnable {
     private var mThread: Thread? = null
     private var mIsEnabled = false
@@ -23,13 +25,16 @@ abstract class AudioThread : Runnable {
     fun start() {
         mIsEnabled = true
         mThread = Thread(this)
+        checkNotNull(mThread) {
+            Log.e(TAG, "Failed to create AudioThread")
+        }
         mThread!!.start()
     }
 
     fun stop() {
         mIsEnabled = false
         try {
-            mThread!!.join(1000)
+            mThread?.join(1000)
         } catch (e: InterruptedException) {
             e.printStackTrace()
         }

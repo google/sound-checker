@@ -28,11 +28,11 @@ import com.google.android.soundchecker.utils.FastFourierTransform
  * https://en.wikipedia.org/wiki/Total_harmonic_distortion
  * https://en.wikipedia.org/wiki/Signal-to-noise_ratio
  */
-class HarmonicAnalyzer() {
+class HarmonicAnalyzer {
     private var mImaginary: FloatArray? = null
     private var mPeakMargin = 1 // number of extra bins on each side
 
-    class Result() {
+    class Result {
         var totalHarmonicDistortion = 0.0
         var totalHarmonicDistortionPlusNoise = 0.0
         var signalNoiseRatioDB = 0.0

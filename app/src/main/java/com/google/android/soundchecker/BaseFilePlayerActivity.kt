@@ -28,6 +28,7 @@ import android.os.Looper
 import android.os.Message
 import android.os.SystemClock
 import android.provider.OpenableColumns
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -69,12 +70,12 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
 
     protected var mFile: Uri? = null
     protected var mIsPlaying = false
-    protected var mAudioManager: AudioManager? = null
+    protected lateinit var mAudioManager: AudioManager
 
-    private var mFocusRequest: AudioFocusRequest? = null
+    private lateinit var mFocusRequest: AudioFocusRequest
 
     private val mMsgHandlerThread = HandlerThread("audioSample_FilePlayer_MsgHandler")
-    private var mHandler: MsgHandler? = null
+    private lateinit var mHandler: MsgHandler
 
     private var mMsg = mutableStateOf("")
     private var mPlaybackButtonText = mutableStateOf("")
@@ -115,8 +116,8 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
 
                     mMsg.value = getSelectedFileUnplayableReason()
                     mPlaybackButtonText.value = getString(R.string.start)
-                    var msg by mMsg
-                    var playbackButtonText by mPlaybackButtonText
+                    val msg by mMsg
+                    val playbackButtonText by mPlaybackButtonText
                     Button(
                             onClick = { onPlaybackButtonClicked() },
                             enabled = msg.isEmpty()
@@ -137,7 +138,7 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
                 .setAudioAttributes(mAttrs)
                 .setAcceptsDelayedFocusGain(true)
                 .setWillPauseWhenDucked(false)
-                .setOnAudioFocusChangeListener(this, mHandler!!)
+                .setOnAudioFocusChangeListener(this, mHandler)
                 .build()
     }
 
@@ -147,7 +148,7 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
     }
 
     fun getHandler(): Handler {
-        return mHandler!!
+        return mHandler
     }
 
     /**
@@ -161,24 +162,28 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
         return ""
     }
 
-    open fun start() {
-        mAudioManager!!.requestAudioFocus(mFocusRequest!!)
+    open fun startPlayback() {
+        mAudioManager.requestAudioFocus(mFocusRequest)
         mIsPlaying = true
         mPlaybackButtonText.value = getString(R.string.stop)
     }
 
-    open fun stop() {
+    open fun stopPlayback() {
         mIsPlaying = false
         mPlaybackButtonText.value = getString(R.string.start)
-        mAudioManager!!.abandonAudioFocusRequest(mFocusRequest!!)
+        mAudioManager.abandonAudioFocusRequest(mFocusRequest)
     }
 
     private fun getSelectedFileName(): String {
         if (mFile == null) {
             return ""
         }
-        val cursor = contentResolver.query(mFile!!, null, null, null, null)
-        val index = cursor!!.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        val file = mFile!!
+        val cursor = contentResolver.query(file, null, null, null, null)
+        checkNotNull(cursor) {
+            Toast.makeText(this, "Cannot get name of the selected file", Toast.LENGTH_LONG).show()
+        }
+        val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
         cursor.moveToFirst()
         val name = cursor.getString(index)
         cursor.close()
@@ -199,7 +204,7 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
 
     private fun sendMsg(msg: Int, arg1: Int, arg2: Int, obj: Object?, delay: Int) {
         val time = SystemClock.uptimeMillis() + delay
-        mHandler!!.sendMessageAtTime(mHandler!!.obtainMessage(msg, arg1, arg2, obj), time)
+        mHandler.sendMessageAtTime(mHandler.obtainMessage(msg, arg1, arg2, obj), time)
     }
 
     inner class MsgHandler constructor(
@@ -209,21 +214,21 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
             when (msg.what) {
                 ON_PLAYBACK_STATE_CHANGED -> {
                     if (mIsPlaying) {
-                        stop()
+                        stopPlayback()
                     } else {
-                        start()
+                        startPlayback()
                     }
                 }
 
                 START_PLAYBACK -> {
                     if (!mIsPlaying) { // Only start when it is not playing
-                        start()
+                        startPlayback()
                     }
                 }
 
                 STOP_PLAYBACK -> {
                     if (mIsPlaying) { // Only stop when it is playing
-                        stop()
+                        stopPlayback()
                     }
                 }
 

@@ -20,6 +20,7 @@ import android.annotation.TargetApi
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 
 import com.google.android.exoplayer2.DefaultRenderersFactory
 import com.google.android.exoplayer2.ExoPlayer
@@ -38,17 +39,22 @@ class MQAFilePlayerActivity : BitPerfectFilePlayerActivity() {
         mTag = "MQAFilePlayerActivity"
     }
 
-    override fun start() {
-        super.start()
+    override fun startPlayback() {
+        super.startPlayback()
+        checkNotNull(mFile) {
+            Toast.makeText(this, "The selected file is null", Toast.LENGTH_LONG).show()
+        }
+        val file = mFile!!
         mExoPlayer = ExoPlayer.Builder(this, MyRendererFactory(this)).build()
-        mExoPlayer!!.addMediaItem(MediaItem.fromUri(mFile!!))
-        mExoPlayer!!.prepare()
-        mExoPlayer!!.play()
+        val exoPlayer = mExoPlayer!!
+        exoPlayer.addMediaItem(MediaItem.fromUri(file))
+        exoPlayer.prepare()
+        exoPlayer.play()
     }
 
-    override fun stop() {
-        mExoPlayer!!.stop()
-        super.stop()
+    override fun stopPlayback() {
+        mExoPlayer?.stop()
+        super.stopPlayback()
     }
 
     inner class MyRendererFactory(context: Context?) :
@@ -56,7 +62,7 @@ class MQAFilePlayerActivity : BitPerfectFilePlayerActivity() {
         override fun buildAudioSink(
                 context: Context, enableFloatOutput: Boolean,
                 enableAudioTrackPlaybackParams: Boolean, enableOffload: Boolean,
-        ): AudioSink? {
+        ): AudioSink {
             return SimpleAudioSink(mPlaybackConfigurationDiscover, true)
         }
     }

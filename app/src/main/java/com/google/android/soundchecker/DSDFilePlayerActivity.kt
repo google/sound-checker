@@ -28,8 +28,6 @@ import com.google.android.soundchecker.dsd.DsfReader
 
 @TargetApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 class DSDFilePlayerActivity : BitPerfectFilePlayerActivity() {
-    private var mFileReader: DsfReader? = null
-    private var mDop: DopWrapper? = null
     private var mAudioTrackSink: AudioTrackSink? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,36 +35,43 @@ class DSDFilePlayerActivity : BitPerfectFilePlayerActivity() {
         mTag = "DsdFilePlayerActivity"
     }
 
-    override fun start() {
-        super.start()
-        mFileReader = DsfReader(contentResolver.openInputStream(mFile!!)!!)
-        if (!mFileReader!!.prepareForReadingData()) {
+    override fun startPlayback() {
+        super.startPlayback()
+        checkNotNull(mFile) {
+            Toast.makeText(this, "Selected file is null", Toast.LENGTH_LONG).show()
+        }
+        val fileReader = DsfReader(contentResolver.openInputStream(mFile!!)!!)
+        if (!fileReader.prepareForReadingData()) {
             Toast.makeText(this, getString(R.string.unable_to_open_selected_file), Toast.LENGTH_LONG).show()
             Log.e(mTag, getString(R.string.unable_to_open_selected_file))
             sendStopPlaybackMsg(0)
             return
         }
-        if (mFileReader!!.getAudioFormatBuilder() == null) {
+        if (fileReader.getAudioFormatBuilder() == null) {
             Toast.makeText(this, getString(R.string.unable_to_parse_selected_file), Toast.LENGTH_LONG).show()
             Log.e(mTag, getString(R.string.unable_to_parse_selected_file))
             sendStopPlaybackMsg(0)
             return
         }
-        val format = mFileReader!!.getAudioFormatBuilder()!!.build()
-        val deviceFormat = mPlaybackConfigurationDiscover.onPlaybackConfigured(format)
-        mDop = DopWrapper(mFileReader!!, deviceFormat.encoding)
+        val formatBuilder = fileReader.getAudioFormatBuilder()
+        checkNotNull(formatBuilder) {
+            Toast.makeText(
+                this, "Unable to get audio format for the selected file", Toast.LENGTH_LONG).show()
+        }
+        val deviceFormat = mPlaybackConfigurationDiscover.onPlaybackConfigured(
+            formatBuilder.build())
+        val dopWrapper = DopWrapper(fileReader, deviceFormat.encoding)
         mAudioTrackSink = AudioTrackSink()
-        mDop!!.connect(mAudioTrackSink!!)
-        mAudioTrackSink!!.mEncoding = deviceFormat.encoding
-        mAudioTrackSink!!.mChannelMask = deviceFormat.channelMask
-        mAudioTrackSink!!.mSampleRate = deviceFormat.sampleRate
-        mAudioTrackSink!!.start()
+        val audioTrackSink = mAudioTrackSink!!
+        dopWrapper.connect(audioTrackSink)
+        audioTrackSink.mEncoding = deviceFormat.encoding
+        audioTrackSink.mChannelMask = deviceFormat.channelMask
+        audioTrackSink.mSampleRate = deviceFormat.sampleRate
+        audioTrackSink.start()
     }
 
-    override fun stop() {
-        super.stop()
-        if (mAudioTrackSink != null) {
-            mAudioTrackSink!!.stop()
-        }
+    override fun stopPlayback() {
+        super.stopPlayback()
+        mAudioTrackSink?.stop()
     }
 }

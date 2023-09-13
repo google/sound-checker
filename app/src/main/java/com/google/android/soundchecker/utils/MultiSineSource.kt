@@ -16,9 +16,13 @@
 
 package com.google.android.soundchecker.utils
 
+import android.util.Log
+
 class MultiSineSource : AudioSource() {
 
     private var mSineSources = ArrayList<SineSource>()
+
+    private var mTemporaryBuffer: FloatArray? = null
 
     fun addPartial(min: Float, current: Float, max: Float) {
         val sineSource = SineSource()
@@ -44,6 +48,9 @@ class MultiSineSource : AudioSource() {
         if (mTemporaryBuffer == null || mTemporaryBuffer!!.size < numFrames) {
             mTemporaryBuffer = FloatArray(numFrames)
         }
+        checkNotNull(mTemporaryBuffer) {
+            Log.e(TAG, "Cannot init internal buffer")
+        }
         // Clear for mixing.
         for (i in 0 until numFrames * stride) {
             buffer[i] = 0.0f
@@ -63,7 +70,7 @@ class MultiSineSource : AudioSource() {
     override fun pull(buffer: ByteArray, numFrames: Int): Int {
         val floatArray = FloatArray(numFrames)
         pull(floatArray, numFrames)
-        Helpers.floatArrayToByteArray(floatArray, buffer)
+        floatArrayToByteArray(floatArray, buffer)
         return numFrames
     }
 
@@ -72,5 +79,7 @@ class MultiSineSource : AudioSource() {
         return numFrames
     }
 
-    var mTemporaryBuffer: FloatArray? = null
+    companion object {
+        private val TAG = "MultiSinSource"
+    }
 }

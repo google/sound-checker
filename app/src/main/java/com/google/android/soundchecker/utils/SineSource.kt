@@ -18,14 +18,14 @@ package com.google.android.soundchecker.utils
 
 import kotlin.math.sin
 
-class SineSource() : AudioSource() {
-    private val mFequencyPort = FrequencyControlPort("frequency", 100.0f, 440.0f, 6000.0f)
+class SineSource : AudioSource() {
+    private val mFrequencyPort = FrequencyControlPort("frequency", 100.0f, 440.0f, 6000.0f)
     private val mAmplitudePort = ControlPort("amplitude", 0.0f, 0.1f, 1.0f)
     private var mPhase = 0.0
     private var mPhaseIncrement = 0.0
 
     fun getFrequencyPort(): ControlPort {
-        return mFequencyPort
+        return mFrequencyPort
     }
 
     fun getAmplitudePort(): ControlPort {
@@ -53,7 +53,7 @@ class SineSource() : AudioSource() {
     override fun pull(buffer: ByteArray, numFrames: Int): Int {
         val floatArray = FloatArray(numFrames * getChannelCount())
         pull(floatArray, numFrames)
-        Helpers.floatArrayToByteArray(floatArray, buffer)
+        floatArrayToByteArray(floatArray, buffer)
         return numFrames
     }
 

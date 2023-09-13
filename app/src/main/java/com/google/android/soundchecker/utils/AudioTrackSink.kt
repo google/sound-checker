@@ -56,50 +56,54 @@ class AudioTrackSink(var preferredDevice: AudioDeviceInfo? = null,
         }
         if (mAudioTrack == null) {
             mAudioTrack = createAudioTrack(0)
-            mAudioTrack!!.preferredDevice = preferredDevice
+            mAudioTrack?.preferredDevice = preferredDevice
         }
     }
 
     private fun close() {
-        if (mAudioTrack != null) {
-            mAudioTrack!!.release()
-            mAudioTrack = null
-        }
+        mAudioTrack?.release()
+        mAudioTrack = null
     }
 
     override fun start() {
         open()
+        checkNotNull(mAudioTrack) {
+            Log.e(TAG, "Failed to create AudioTrack")
+        }
         mAudioTrack!!.play()
+        checkNotNull(mThread) {
+            Log.e(TAG, "Failed to create AudioThread")
+        }
         mThread!!.start()
     }
 
     override fun stop() {
-        if (mThread != null) {
-            mThread!!.stop()
-        }
-        if (mAudioTrack != null) {
-            mAudioTrack!!.stop()
-        }
+        mThread?.stop()
+        mAudioTrack?.stop()
         mFramesWritten = 0
         close()
     }
 
     fun runAudioLoop() {
-        while (mThread!!.isEnabled()) {
+        while (mThread?.isEnabled() == true) {
+            val audioSource = mAudioSource!!
+            val audioTrack = mAudioTrack!!
             val numWritten = if (selectedChannelIndex < 0) {
-                val framesRead = mAudioSource!!.pull(mBuffer!!, FRAMES_PER_BURST)
+                val buffer = mBuffer!!
+                val framesRead = audioSource.pull(buffer, FRAMES_PER_BURST)
                 val sizeInByte = framesRead * getBytesPerFrame()
-                val byteBuffer = ByteBuffer.wrap(mBuffer!!, 0, sizeInByte)
-                mAudioTrack!!.write(byteBuffer, sizeInByte, AudioTrack.WRITE_BLOCKING)
+                val byteBuffer = ByteBuffer.wrap(buffer, 0, sizeInByte)
+                audioTrack.write(byteBuffer, sizeInByte, AudioTrack.WRITE_BLOCKING)
             } else {
-                val framesRead = mAudioSource!!.render(
-                        mFloatBuffer!!,
+                val floatBuffer = mFloatBuffer!!
+                val framesRead = audioSource.render(
+                        floatBuffer,
                         selectedChannelIndex,
                         getChannelCount(),
                         FRAMES_PER_BURST
                 )
                 mAudioTrack!!.write(
-                        mFloatBuffer!!,
+                        floatBuffer,
                         0,
                         framesRead * getChannelCount(),
                         AudioTrack.WRITE_BLOCKING)

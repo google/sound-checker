@@ -26,15 +26,15 @@ open class AudioEndpoint(val isInput: Boolean) {
 
     fun getChannelCount(): Int {
         return if (mChannelMask == AudioFormat.CHANNEL_INVALID) mChannelCount
-        else Helpers.getChannelCountFromMask(mChannelMask)
+        else mChannelMask.getChannelCountFromMask()
     }
 
     fun getBytesPerSample(): Int {
-        return Helpers.bytesPerSample(mEncoding)
+        return mEncoding.bytesPerSample()
     }
 
     fun getBytesPerFrame(): Int {
-        return getChannelCount() * Helpers.bytesPerSample(mEncoding)
+        return getChannelCount() * getBytesPerSample()
     }
 
     @Throws(IllegalArgumentException::class)
@@ -59,7 +59,7 @@ open class AudioEndpoint(val isInput: Boolean) {
                 }
 
                 else -> {
-                    builder.setChannelIndexMask(Helpers.getChannelIndexMask(mChannelCount))
+                    builder.setChannelIndexMask(mChannelCount.generateChannelIndexMask())
                 }
             }
         }

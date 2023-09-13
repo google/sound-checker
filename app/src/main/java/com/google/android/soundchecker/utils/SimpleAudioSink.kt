@@ -38,11 +38,9 @@ import com.google.android.exoplayer2.util.Util
 
 class SimpleAudioSink internal constructor(
         discover: PlaybackConfigurationDiscover,
-        bitPerfectRequired: Boolean,
-) :
-        AudioSink {
+        bitPerfectRequired: Boolean) : AudioSink {
     private val mBitPerfectRequired: Boolean
-    var mListener: AudioSink.Listener? = null
+    private var mListener: AudioSink.Listener? = null
     private val mPlaybackConfigurationDiscover: PlaybackConfigurationDiscover
     private var mAudioTrack: AudioTrack? = null
     private var mAudioSessionId = -1
@@ -85,13 +83,13 @@ class SimpleAudioSink internal constructor(
         val timestamp = AudioTimestamp()
         if (mAudioTrack!!.getTimestamp(timestamp)) {
             while (mPresentationTimeCollection.size > 1) {
-                val peekTime = mPresentationTimeCollection.peek()
+                val peekTime = mPresentationTimeCollection.peek()!!
                 if (peekTime.first >= timestamp.framePosition) {
                     break
                 }
                 mPresentationTimeCollection.remove()
             }
-            val recentTime = mPresentationTimeCollection.peek()
+            val recentTime = mPresentationTimeCollection.peek()!!
             mLastPosition = (recentTime.second + (timestamp.framePosition - recentTime.first)
                     * C.MICROS_PER_SECOND / mFormat!!.sampleRate)
         }
@@ -106,8 +104,7 @@ class SimpleAudioSink internal constructor(
                     "Unsupported mimetype:" + inputFormat.sampleMimeType, inputFormat
             )
         }
-        var encoding = AudioFormat.ENCODING_INVALID
-        encoding = when (inputFormat.pcmEncoding) {
+        val encoding = when (inputFormat.pcmEncoding) {
             C.ENCODING_PCM_8BIT -> AudioFormat.ENCODING_PCM_8BIT
             C.ENCODING_PCM_16BIT -> AudioFormat.ENCODING_PCM_16BIT
             C.ENCODING_PCM_24BIT -> AudioFormat.ENCODING_PCM_24BIT_PACKED
@@ -117,8 +114,7 @@ class SimpleAudioSink internal constructor(
                     "Unsupported encoding:" + inputFormat.pcmEncoding, inputFormat
             )
         }
-        var channelMask = AudioFormat.CHANNEL_OUT_DEFAULT
-        channelMask = when (inputFormat.channelCount) {
+        val channelMask = when (inputFormat.channelCount) {
             1 -> AudioFormat.CHANNEL_OUT_MONO
             2 -> AudioFormat.CHANNEL_OUT_STEREO
             else -> throw AudioSink.ConfigurationException(
@@ -213,12 +209,10 @@ class SimpleAudioSink internal constructor(
     }
 
     override fun setPlaybackParameters(playbackParameters: PlaybackParameters) {
-        var playbackParameters = playbackParameters
-        playbackParameters = PlaybackParameters(
+        mPlaybackParams = PlaybackParameters(
                 Util.constrainValue(playbackParameters.speed, MIN_PLAYBACK_SPEED, MAX_PLAYBACK_SPEED),
                 Util.constrainValue(playbackParameters.pitch, MIN_PITCH, MAX_PITCH)
         )
-        mPlaybackParams = playbackParameters
     }
 
     override fun getPlaybackParameters(): PlaybackParameters {
@@ -291,7 +285,7 @@ class SimpleAudioSink internal constructor(
     override fun reset() {
         if (isAudioTrackInitialized) {
             flush()
-            mAudioTrack!!.release()
+            mAudioTrack?.release()
             mAudioTrack = null
             mHandledEndOfStream = false
             mLastBuffer = null
@@ -299,7 +293,7 @@ class SimpleAudioSink internal constructor(
     }
 
     private val isAudioTrackInitialized: Boolean
-        private get() = mAudioTrack != null
+        get() = mAudioTrack != null
 
     private fun getAudioFormat(encoding: Int, channelMask: Int, sampleRate: Int): AudioFormat {
         return AudioFormat.Builder()
@@ -318,6 +312,9 @@ class SimpleAudioSink internal constructor(
             builder.setSessionId(mAudioSessionId)
         }
         mAudioTrack = builder.build()
+        checkNotNull(mAudioTrack) {
+            Log.e(TAG, "Failed to create AudioTrack")
+        }
         val state = mAudioTrack!!.state
         if (state != AudioTrack.STATE_INITIALIZED) {
             reset()
@@ -336,7 +333,7 @@ class SimpleAudioSink internal constructor(
     }
 
     companion object {
-        private const val TAG = "MQAFlacPlayer_SimpleAudioSink"
+        private const val TAG = "SimpleAudioSink"
         const val MIN_PLAYBACK_SPEED = 0.1f
         const val MAX_PLAYBACK_SPEED = 8f
         const val MIN_PITCH = 0.1f
