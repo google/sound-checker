@@ -24,7 +24,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.util.Arrays
 
-class DsfReader constructor(inputStream: InputStream) {
+class DsfReader(inputStream: InputStream) {
     companion object {
         private const val TAG = "DsfReader"
 
@@ -59,13 +59,13 @@ class DsfReader constructor(inputStream: InputStream) {
         private const val DEFAULT_ENCODING = AudioFormat.ENCODING_PCM_24BIT_PACKED
     }
 
-    private var mStream: InputStream? = null
+    private var mStream: InputStream
 
     private var mDataLeft: Long = 0
     private var mTotalFileSize: Long = 0
     private var mIsInvalidFile = false
 
-    private var mAudioFormatBuilder: AudioFormat.Builder? = null
+    private var mAudioFormatBuilder: AudioFormat.Builder
     private var mChannelCount = 0
     private var mBitsPerSample = 0
     private var mSampleCount: Long = 0
@@ -138,9 +138,7 @@ class DsfReader constructor(inputStream: InputStream) {
 
     fun close() {
         try {
-            if (mStream != null) {
-                mStream!!.close()
-            }
+            mStream.close()
         } catch (e: IOException) {
             Log.e(TAG, "Error when closing reader:$e")
         }
@@ -149,7 +147,7 @@ class DsfReader constructor(inputStream: InputStream) {
     private fun readNextBlock(channel: Int): Boolean {
         Arrays.fill(mData[channel], 0, mData[channel].size - 1, 0x0.toByte())
         try {
-            val sz = mStream!!.read(mData[channel])
+            val sz = mStream.read(mData[channel])
             if (sz != mData[channel].size) {
                 Log.w(TAG, "Cannot read full buffer: $sz")
             }
@@ -165,7 +163,7 @@ class DsfReader constructor(inputStream: InputStream) {
     private fun readInteger(length: Int): Long? {
         val bytes = ByteArray(length)
         try {
-            if (mStream!!.read(bytes) == length) {
+            if (mStream.read(bytes) == length) {
                 return convertToLongFrom(bytes)
             }
         } catch (e: IOException) {
@@ -176,7 +174,7 @@ class DsfReader constructor(inputStream: InputStream) {
 
     private fun skipData(n: Long): Boolean {
         try {
-            mStream!!.skip(n)
+            mStream.skip(n)
             return true
         } catch (e: IOException) {
             Log.e(TAG, "Failed to skip data n=$n")
@@ -187,19 +185,19 @@ class DsfReader constructor(inputStream: InputStream) {
     private fun readChunkHeader(targetHeaderId: ByteArray): Long {
         val headerBytes = ByteArray(CHUNK_HEADER_LENGTH)
         return try {
-            if (mStream!!.read(headerBytes) != CHUNK_HEADER_LENGTH) {
+            if (mStream.read(headerBytes) != CHUNK_HEADER_LENGTH) {
                 Log.w(TAG, "Cannot read header")
                 return 0
             }
-            val headerType = Arrays.copyOfRange(headerBytes, 0, 4)
+            val headerType = headerBytes.copyOfRange(0, 4)
             if (!Arrays.equals(headerType, targetHeaderId)) {
                 Log.e(
-                        TAG, "Wrong chunk header type:" + Arrays.toString(headerType)
-                        + " expected:" + Arrays.toString(targetHeaderId)
+                        TAG, "Wrong chunk header type:" + headerType.contentToString()
+                        + " expected:" + targetHeaderId.contentToString()
                 )
                 return 0
             }
-            convertToLongFrom(Arrays.copyOfRange(headerBytes, 4, 12))
+            convertToLongFrom(headerBytes.copyOfRange(4, 12))
         } catch (e: IOException) {
             Log.e(TAG, "Failed to read chunk header:$e")
             0
@@ -265,7 +263,7 @@ class DsfReader constructor(inputStream: InputStream) {
             Log.e(TAG, "Unable to read sample rate")
             return false
         }
-        mAudioFormatBuilder!!.setSampleRate(sampleRate.toInt() / 16)
+        mAudioFormatBuilder.setSampleRate(sampleRate.toInt() / 16)
         Log.i(TAG, "Sample rate:$sampleRate")
         length -= 4
         val bitsPerSample = readInteger(4)
@@ -294,7 +292,7 @@ class DsfReader constructor(inputStream: InputStream) {
             return false
         }
         Log.i(TAG, "Block size per channel=$blockSizePerChannel")
-        if (blockSizePerChannel.toInt() !== BLOCK_SIZE_PER_CHANNEL) {
+        if (blockSizePerChannel.toInt() != BLOCK_SIZE_PER_CHANNEL) {
             Log.e(TAG, "Invalid block size per channel: $blockSizePerChannel")
             return false
         }
@@ -328,7 +326,7 @@ class DsfReader constructor(inputStream: InputStream) {
         val channelMask = CHANNEL_TYPE_MAP[value]
         if (channelMask != null) {
             Log.i(TAG, "Channel mask=$channelMask")
-            mAudioFormatBuilder!!.setChannelMask(channelMask)
+            mAudioFormatBuilder.setChannelMask(channelMask)
             return true
         }
         return false

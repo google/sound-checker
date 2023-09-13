@@ -42,16 +42,16 @@ open class BitPerfectFilePlayerActivity : BaseFilePlayerActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        mAudioManager!!.registerAudioDeviceCallback(mDeviceCallback, getHandler())
+        mAudioManager.registerAudioDeviceCallback(mDeviceCallback, getHandler())
     }
 
     override fun getSelectedFileUnplayableReason(): String {
         val reason = super.getSelectedFileUnplayableReason();
         if (reason.isNotEmpty()) {
-            return reason;
+            return reason
         }
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.TIRAMISU) {
-            return getString(R.string.sdk_required, 34);
+            return getString(R.string.sdk_required, 34)
         }
         if (mUsbDevice == null) {
             return getString(R.string.connect_usb)
@@ -59,7 +59,7 @@ open class BitPerfectFilePlayerActivity : BaseFilePlayerActivity() {
         if (mBitPerfectMixerAttributes.isEmpty()) {
             return getString(R.string.no_bit_perfect_mixer_attr)
         }
-        return "";
+        return ""
     }
 
     protected val mPlaybackConfigurationDiscover: PlaybackConfigurationDiscover =
@@ -72,20 +72,20 @@ open class BitPerfectFilePlayerActivity : BaseFilePlayerActivity() {
                         for (mixerAttr in mBitPerfectMixerAttributes) {
                             if (mixerAttr.format == format) {
                                 Log.i(mTag, "Found exactly matched mixer attributes=$mixerAttr")
-                                mAudioManager!!.setPreferredMixerAttributes(
+                                mAudioManager.setPreferredMixerAttributes(
                                         mAttrs, mUsbDevice!!, mixerAttr)
                                 return builder.build()
                             }
                         }
                         // There is not exactly matched mixer attributes, try greater bit depth
-                        var greaterBitDepths = getGreaterBitDepth(format.encoding)
+                        val greaterBitDepths = getGreaterBitDepth(format.encoding)
                         for (mixerAttr in mBitPerfectMixerAttributes) {
                             if (mixerAttr.format.channelMask == format.channelMask
                                     && mixerAttr.format.sampleRate == format.sampleRate
                                     && greaterBitDepths.contains(mixerAttr.format.encoding)) {
                                 Log.i(mTag,
                                       "Use greater bit depth for mixer attributes=$mixerAttr")
-                                mAudioManager!!.setPreferredMixerAttributes(
+                                mAudioManager.setPreferredMixerAttributes(
                                         mAttrs, mUsbDevice!!, mixerAttr)
                                 builder.setEncoding(mixerAttr.format.encoding)
                                 return builder.build()
@@ -110,12 +110,12 @@ open class BitPerfectFilePlayerActivity : BaseFilePlayerActivity() {
     }
 
     private fun scanForUsbDevice() {
-        for (device in mAudioManager!!.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
+        for (device in mAudioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
             mUsbDevice = null
             if (device.type == AudioDeviceInfo.TYPE_USB_HEADSET
                     || device.type == AudioDeviceInfo.TYPE_USB_DEVICE) {
                 mUsbDevice = device
-                for (mixerAttr in mAudioManager!!.getSupportedMixerAttributes(device)) {
+                for (mixerAttr in mAudioManager.getSupportedMixerAttributes(device)) {
                     if (mixerAttr.mixerBehavior == AudioMixerAttributes.MIXER_BEHAVIOR_BIT_PERFECT) {
                         Log.i(mTag, "find mixer attributes=$mixerAttr")
                         mBitPerfectMixerAttributes.add(mixerAttr)

@@ -24,17 +24,12 @@ import java.nio.ByteOrder
 /**
  * A converter to convert PCM data. Currently supports PCM 24 bit to PCM 32 bit.
  */
-class PcmConverter @Throws(IllegalArgumentException::class) constructor(
-        encodingIn: Int,
-        encodingOut: Int,
-) {
+class PcmConverter(private val encodingIn: Int, private val encodingOut: Int) {
     companion object {
-        private val VALID_ENCODINGS_IN = mutableSetOf(AudioFormat.ENCODING_PCM_24BIT_PACKED)
-        private val VALID_ENCODINGS_OUT = mutableSetOf(AudioFormat.ENCODING_PCM_32BIT)
+        private val VALID_ENCODINGS_IN = setOf(AudioFormat.ENCODING_PCM_24BIT_PACKED)
+        private val VALID_ENCODINGS_OUT = setOf(AudioFormat.ENCODING_PCM_32BIT)
     }
 
-    private val mEncodingIn: Int
-    private val mEncodingOut: Int
     private val mBytesPerInputSample: Int
     private val mBytesPerOutputSample: Int
     private var mBuffer: ByteBuffer
@@ -46,10 +41,8 @@ class PcmConverter @Throws(IllegalArgumentException::class) constructor(
         if (!VALID_ENCODINGS_OUT.contains(encodingOut)) {
             throw IllegalArgumentException("Invalid encoding in:$encodingOut")
         }
-        mEncodingIn = encodingIn
-        mEncodingOut = encodingOut
-        mBytesPerInputSample = Helpers.bytesPerSample(mEncodingIn)
-        mBytesPerOutputSample = Helpers.bytesPerSample(mEncodingOut)
+        mBytesPerInputSample = encodingIn.bytesPerSample()
+        mBytesPerOutputSample = encodingOut.bytesPerSample()
         mBuffer = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 
@@ -58,15 +51,20 @@ class PcmConverter @Throws(IllegalArgumentException::class) constructor(
         val limit = input.limit()
         val outputBufferSize = (limit - position) / mBytesPerInputSample * mBytesPerOutputSample
         val buffer = getOutputBuffer(outputBufferSize)
-        when (mEncodingIn) {
+        when (encodingIn) {
             AudioFormat.ENCODING_PCM_24BIT_PACKED -> {
-                var i = position
-                while (i < limit) {
-                    buffer.put(0.toByte())
-                    buffer.put(input[i])
-                    buffer.put(input[i + 1])
-                    buffer.put(input[i + 2])
-                    i += mBytesPerInputSample
+                when (encodingOut) {
+                    AudioFormat.ENCODING_PCM_32BIT -> {
+                        var i = position
+                        while (i < limit) {
+                            buffer.put(0.toByte())
+                            buffer.put(input[i])
+                            buffer.put(input[i + 1])
+                            buffer.put(input[i + 2])
+                            i += mBytesPerInputSample
+                        }
+                    }
+                    else -> {}
                 }
             }
 

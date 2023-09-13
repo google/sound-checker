@@ -34,10 +34,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.google.android.soundchecker.utils.describe
 
 import kotlinx.coroutines.flow.MutableStateFlow
 
-import com.google.android.soundchecker.utils.Helpers
+import com.google.android.soundchecker.utils.highestChannelCount
+import com.google.android.soundchecker.utils.describe
 import com.google.android.soundchecker.utils.ui.AudioDeviceListEntry
 import com.google.android.soundchecker.utils.ui.AudioDeviceSpinner
 
@@ -54,7 +56,7 @@ fun DevicePicker(type: Int,
     val channelIndexesEnabled = mutableListOf(true, true, true, true)
 
     fun updateDeviceText(entry: AudioDeviceListEntry) {
-        deviceText = if (entry.deviceInfo == null) "none" else Helpers.shortDump(entry.deviceInfo!!)
+        deviceText = if (entry.deviceInfo == null) "none" else entry.deviceInfo!!.describe()
     }
 
     Column {
@@ -67,7 +69,7 @@ fun DevicePicker(type: Int,
                         updateDeviceText(entry)
                         onItemSelected(entry)
                         val maxChannelCount = if (entry.deviceInfo == null) 1
-                        else Helpers.findHighestChannelCountFor(entry.deviceInfo!!)
+                        else entry.deviceInfo!!.highestChannelCount()
                         for (i in 0 until maxChannelCount) {
                             channelIndexesEnabled[i] = true
                         }

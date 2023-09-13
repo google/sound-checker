@@ -21,6 +21,8 @@ import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.util.Log
+import android.widget.Toast
 
 class AudioRecordSource(var preferredDevice: AudioDeviceInfo? = null,
                         var selectedChannelIndex: Int = -1) : AudioSource() {
@@ -44,7 +46,7 @@ class AudioRecordSource(var preferredDevice: AudioDeviceInfo? = null,
         mAudioRecord!!.preferredDevice = preferredDevice
     }
 
-    fun close() {
+    private fun close() {
         if (mAudioRecord != null) {
             mAudioRecord!!.release()
             mAudioRecord = null
@@ -55,6 +57,9 @@ class AudioRecordSource(var preferredDevice: AudioDeviceInfo? = null,
         val numSamples = numFrames * getChannelCount()
         if (mTransferBuffer == null || mTransferBuffer!!.size < numSamples) {
             mTransferBuffer = FloatArray(numSamples)
+        }
+        checkNotNull(mTransferBuffer) {
+            Log.e(TAG, "Failed to init internal buffer")
         }
         val framesRead = pull(mTransferBuffer!!, numFrames)
         // Copy just the channel we want.
@@ -69,6 +74,10 @@ class AudioRecordSource(var preferredDevice: AudioDeviceInfo? = null,
     }
 
     override fun pull(buffer: FloatArray, numFrames: Int): Int {
+        if (mAudioRecord == null) {
+            Log.w(TAG, "pull data while AudioRecord is null")
+            return 0
+        }
         val sampleReads = mAudioRecord!!.read(
                 buffer, 0, numFrames * getChannelCount(), AudioRecord.READ_BLOCKING)
         if (sampleReads < 0) return sampleReads
@@ -77,22 +86,19 @@ class AudioRecordSource(var preferredDevice: AudioDeviceInfo? = null,
 
     fun start() {
         open()
-        mAudioRecord!!.startRecording()
+        mAudioRecord?.startRecording()
     }
 
     fun stop() {
-        if (mAudioRecord != null) {
-            mAudioRecord!!.stop()
-        }
+        mAudioRecord?.stop()
         close()
     }
 
     val routedDevice: AudioDeviceInfo?
-        get() = if (mAudioRecord == null) null else mAudioRecord!!.routedDevice
+        get() = if (mAudioRecord == null) null else mAudioRecord?.routedDevice
 
     companion object {
-        protected const val TAG = "AudioRecordSource"
+        private const val TAG = "AudioRecordSource"
         private const val AUDIO_SOURCE = MediaRecorder.AudioSource.VOICE_RECOGNITION
-        private const val BYTES_PER_FLOAT = 4
     }
 }

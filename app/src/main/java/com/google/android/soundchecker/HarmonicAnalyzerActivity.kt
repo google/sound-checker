@@ -65,7 +65,7 @@ import com.google.android.soundchecker.harmonicanalyzer.DevicePicker
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzer
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerFramework
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerListener
-import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerSink
+import com.google.android.soundchecker.utils.deviceDisplayName
 import com.google.android.soundchecker.utils.ui.AudioDeviceListEntry
 
 
@@ -80,6 +80,23 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
         private const val FFT_SIZE = 1024
         private const val AVERAGE_SIZE = 24
         private val FREQUENCIES = listOf(1000, 1500, 2000)
+        private var BIN_VALUES = buildList(FREQUENCIES.size) {
+            FREQUENCIES.forEach { frequency ->
+                add(calculateNearestBin(frequency.toDouble()))
+            }
+        }
+        private var BINS = buildList(BIN_VALUES.size) {
+            BIN_VALUES.forEach { bin ->
+                add(String.format("%8.3f Hz, bin#%d", calculateBinFrequency(bin), bin))
+            }
+        }
+        private fun calculateBinFrequency(bin: Int): Double {
+            return SAMPLE_RATE.toDouble() * bin / FFT_SIZE
+        }
+
+        private fun calculateNearestBin(frequency: Double): Int {
+            return (FFT_SIZE * frequency / SAMPLE_RATE).roundToInt()
+        }
     }
 
     private var mInputDevices = MutableStateFlow(ArrayList<AudioDeviceListEntry>())
@@ -90,7 +107,7 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
     private var mSelectedInputChannelIndex = 0
     private var mSelectedOutputChannelIndex = 0
 
-    private var mAudioManager: AudioManager? = null
+    private lateinit var mAudioManager: AudioManager
     private val mDeviceCallback = DeviceConnectionListener()
 
     private var mStartButtonEnabled = mutableStateOf(true)
@@ -105,10 +122,7 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
     private var mFrequencyBinText = mutableStateOf("")
 
     private var mHarmonicAnalyzerFramework: HarmonicAnalyzerFramework? = null
-    private var mHarmonicAnalyzerSink: HarmonicAnalyzerSink? = null
     private val mListener: MyHarmonicAnalyzerListener = MyHarmonicAnalyzerListener()
-    private var mBinValues: ArrayList<Int>? = null
-    private var mBins: ArrayList<String>? = null
     private var mFundamentalBin = 0
 
     // Display average value so it does not jump around so much.
@@ -134,7 +148,7 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
         initFrequencyItems()
         mAudioManager = getSystemService(AudioManager::class.java) as AudioManager
         updateDeviceList()
-        mAudioManager!!.registerAudioDeviceCallback(mDeviceCallback, null)
+        mAudioManager.registerAudioDeviceCallback(mDeviceCallback, null)
         setContent {
             Scaffold(
                     topBar = {
@@ -180,12 +194,12 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                                     onDismissRequest = { expanded = false },
                                     modifier = Modifier.fillMaxWidth()
                             ) {
-                                mBins!!.forEachIndexed { index, bin ->
+                                BINS.forEachIndexed { index, bin ->
                                     DropdownMenuItem(
                                             text = { Text(bin) },
                                             onClick = {
-                                                mFundamentalBin = mBinValues!![index]
-                                                mFrequencyBinText.value = mBins!![index]
+                                                mFundamentalBin = BIN_VALUES[index]
+                                                mFrequencyBinText.value = BINS[index]
                                                 expanded = false
                                             },
                                             enabled = mFrequencySpinnerEnabled.value
@@ -242,24 +256,33 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
         mFrequencySpinnerEnabled.value = false
 
         mHarmonicAnalyzerFramework = HarmonicAnalyzerFramework()
-        mHarmonicAnalyzerSink = mHarmonicAnalyzerFramework!!.harmonicAnalyzerSink
+        checkNotNull(mHarmonicAnalyzerFramework) {
+            Toast.makeText(
+                this,
+                "Failed to init harmonic analyzer framework",
+                Toast.LENGTH_LONG).show()
+        }
+        val harmonicAnalyzerSink = mHarmonicAnalyzerFramework?.harmonicAnalyzerSink
+        checkNotNull(harmonicAnalyzerSink) {
+            Toast.makeText(this, "Failed to init harmonic analyzer sink", Toast.LENGTH_LONG).show()
+        }
 
-        mHarmonicAnalyzerFramework!!.setInputDevice(mSelectedInputDevice)
-        mHarmonicAnalyzerFramework!!.setOutputDevice(mSelectedOutputDevice)
-        mHarmonicAnalyzerFramework!!.addListener(mListener)
+        mHarmonicAnalyzerFramework?.setInputDevice(mSelectedInputDevice)
+        mHarmonicAnalyzerFramework?.setOutputDevice(mSelectedOutputDevice)
+        mHarmonicAnalyzerFramework?.addListener(mListener)
 
-        mHarmonicAnalyzerSink!!.mSampleRate = SAMPLE_RATE
-        mHarmonicAnalyzerSink!!.mFftSize = FFT_SIZE
-        mHarmonicAnalyzerSink!!.mFundamentalBin = mFundamentalBin
+        harmonicAnalyzerSink.mSampleRate = SAMPLE_RATE
+        harmonicAnalyzerSink.mFftSize = FFT_SIZE
+        harmonicAnalyzerSink.mFundamentalBin = mFundamentalBin
 
         mParam.value = String.format("Sample Rate = %6d Hz\nFFT size = %d",
-                mHarmonicAnalyzerSink!!.mSampleRate,
-                mHarmonicAnalyzerSink!!.mFftSize)
+                harmonicAnalyzerSink.mSampleRate,
+                harmonicAnalyzerSink.mFftSize)
 
-        mHarmonicAnalyzerFramework!!.setInputChannelIndex(mSelectedInputChannelIndex)
-        mHarmonicAnalyzerFramework!!.setOutputChannelIndex(mSelectedOutputChannelIndex)
+        mHarmonicAnalyzerFramework?.setInputChannelIndex(mSelectedInputChannelIndex)
+        mHarmonicAnalyzerFramework?.setOutputChannelIndex(mSelectedOutputChannelIndex)
 
-        mHarmonicAnalyzerFramework!!.start()
+        mHarmonicAnalyzerFramework?.start()
     }
 
     private fun onStopTest() {
@@ -270,25 +293,9 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
         mHarmonicAnalyzerFramework?.stop()
     }
 
-    private fun calculateBinFrequency(bin: Int): Double {
-        return SAMPLE_RATE.toDouble() * bin / FFT_SIZE
-    }
-
-    private fun calculateNearestBin(frequency: Double): Int {
-        return (FFT_SIZE * frequency / SAMPLE_RATE).roundToInt()
-    }
-
     private fun initFrequencyItems() {
-        mBinValues = ArrayList()
-        mBins = ArrayList()
-        FREQUENCIES.forEach { frequency ->
-            val bin = calculateNearestBin(frequency.toDouble())
-            mBinValues!!.add(bin)
-            val actualFrequency = calculateBinFrequency(bin)
-            mBins!!.add(String.format("%8.3f Hz, bin#%d", actualFrequency, bin))
-        }
-        mFundamentalBin = mBinValues!![0]
-        mFrequencyBinText.value = mBins!![0]
+        mFundamentalBin = BIN_VALUES[0]
+        mFrequencyBinText.value = BINS[0]
     }
 
     private fun onInputDeviceSelected(entry: AudioDeviceListEntry) {
@@ -312,11 +319,13 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
     private fun updateDeviceList() {
         val inputDevices = ArrayList<AudioDeviceListEntry>()
         val outputDevices = ArrayList<AudioDeviceListEntry>()
-        for (deviceInfo in mAudioManager!!.getDevices(AudioManager.GET_DEVICES_ALL)) {
+        for (deviceInfo in mAudioManager.getDevices(AudioManager.GET_DEVICES_ALL)) {
             if (deviceInfo.isSource) {
-                inputDevices.add(AudioDeviceListEntry(deviceInfo))
+                inputDevices.add(AudioDeviceListEntry(
+                    deviceInfo.id, deviceInfo.deviceDisplayName(), deviceInfo))
             } else if (deviceInfo.isSink) {
-                outputDevices.add(AudioDeviceListEntry(deviceInfo))
+                outputDevices.add(AudioDeviceListEntry(
+                    deviceInfo.id, deviceInfo.deviceDisplayName(), deviceInfo))
             }
         }
         if (inputDevices.isNotEmpty()) {
@@ -360,13 +369,18 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                 sumTHD = 0.0
                 sumTHDN = 0.0
                 sumSNR = 0.0
-                mStatus.value = String.format("analysis #%04d\nTHD   = %6.4f%c\nTHD+N = %6.4f%c\nSNR   = %6.2f dB\nPeak  = %6.2f dB\n",
+                mStatus.value = """
+                    analysis #%04d
+                    THD   = %6.4f%c
+                    THD+N = %6.4f%c
+                    SNR   = %6.2f dB
+                    nPeak  = %6.2f dB
+                """.trimIndent().format(
                         analysisCount,
                         averageTHD * 100.0, '%',
                         averageTHDN * 100.0, '%',
                         averageSNR,
-                        averagePeakDB
-                )
+                        averagePeakDB)
             }
         }
     }

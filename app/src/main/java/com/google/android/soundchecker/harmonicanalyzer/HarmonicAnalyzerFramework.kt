@@ -21,8 +21,8 @@ import android.media.AudioFormat
 
 import com.google.android.soundchecker.utils.AudioRecordSource
 import com.google.android.soundchecker.utils.AudioTrackSink
-import com.google.android.soundchecker.utils.Helpers
 import com.google.android.soundchecker.utils.SineSource
+import com.google.android.soundchecker.utils.highestChannelCount
 
 class HarmonicAnalyzerFramework {
     private var mSineSource = SineSource()
@@ -64,7 +64,7 @@ class HarmonicAnalyzerFramework {
         if (inputDevice == null) {
             mAudioRecordSource.mChannelMask = AudioFormat.CHANNEL_IN_STEREO
         } else {
-            mAudioRecordSource.mChannelCount = Helpers.findHighestChannelCountFor(inputDevice)
+            mAudioRecordSource.mChannelCount = inputDevice.highestChannelCount()
         }
     }
 
@@ -73,7 +73,7 @@ class HarmonicAnalyzerFramework {
         if (outputDevice == null) {
             mAudioTrackSink.mChannelMask = AudioFormat.CHANNEL_OUT_STEREO
         } else {
-            mAudioTrackSink.mChannelCount = Helpers.findHighestChannelCountFor(outputDevice)
+            mAudioTrackSink.mChannelCount = outputDevice.highestChannelCount()
             mSineSource.mChannelCount = mAudioTrackSink.mChannelCount
         }
     }

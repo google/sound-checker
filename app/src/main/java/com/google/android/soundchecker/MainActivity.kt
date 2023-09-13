@@ -20,23 +20,21 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
 class MainActivity : ComponentActivity() {
@@ -53,10 +51,12 @@ class MainActivity : ComponentActivity() {
             Scaffold(
                     topBar = {
                         TopAppBar(title = { Text(getString(R.string.app_name)) },
-                                modifier = Modifier.shadow(elevation = 4.dp))
+                                  modifier = Modifier.shadow(elevation = 4.dp))
                     }
             ) { paddingValues ->
-                TestsList(tests = items, paddingValues)
+                TestsList(tests = items, modifier = Modifier.padding(paddingValues)) { clazz ->
+                    startActivity(Intent(this, clazz))
+                }
             }
         }
     }
@@ -64,29 +64,37 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun TestsList(tests: List<Pair<String, Class<out ComponentActivity>>>,
-              paddingValues: PaddingValues) {
-    LazyColumn(modifier = Modifier.padding(paddingValues)) {
+              modifier: Modifier,
+              onItemClick: (Class<out ComponentActivity>) -> Unit) {
+    LazyColumn(modifier = modifier,
+               verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         items(tests) { test ->
-            TestItem(test)
+            Button(
+                shape = RoundedCornerShape(10.dp),
+                onClick = { onItemClick(test.second) },
+                modifier = Modifier.fillMaxWidth())
+            {
+                Text(text = test.first, style = MaterialTheme.typography.headlineSmall)
+            }
         }
     }
 }
 
-@Composable
+/*@Composable
 fun TestItem(testInfo: Pair<String, Class<out ComponentActivity>>) {
     val context = LocalContext.current
-    Surface(
+    Button(
             shape = RoundedCornerShape(10.dp),
-            color = MaterialTheme.colorScheme.primary,
+            onClick = {
+                val intent = Intent(context, testInfo.second)
+                context.startActivity(intent)
+            },
             modifier = Modifier
                     .padding(all = 4.dp)
                     .fillMaxWidth()
-                    .clickable {
-                      val intent = Intent(context, testInfo.second)
-                      context.startActivity(intent)
-                    }
     ) {
         Text(text = testInfo.first,
-                style = MaterialTheme.typography.headlineSmall)
+             style = MaterialTheme.typography.headlineSmall)
     }
-}
+}*/

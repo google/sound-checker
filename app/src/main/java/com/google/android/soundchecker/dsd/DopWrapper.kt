@@ -25,16 +25,12 @@ import kotlin.math.min
 
 import com.google.android.soundchecker.utils.AudioSource
 
-class DopWrapper @Throws(IllegalArgumentException::class) constructor(
-        dsfReader: DsfReader,
-        encoding: Int
-) : AudioSource() {
+class DopWrapper(private var dsfReader: DsfReader, encoding: Int) : AudioSource() {
 
     companion object {
         private const val TAG = "DOPHelper"
     }
 
-    private var mDsfReader: DsfReader? = null
     private var mBytesPerSample = 0
     private var mBytesPerFrame = 0
 
@@ -47,7 +43,6 @@ class DopWrapper @Throws(IllegalArgumentException::class) constructor(
                 encoding != AudioFormat.ENCODING_PCM_32BIT) {
             throw IllegalArgumentException("Invalid encoding=$encoding for creating DopWrapper")
         }
-        mDsfReader = dsfReader
         mChannelCount = dsfReader.getChannelCount()
         mEncoding = encoding
         mBytesPerSample = getBytesPerSample()
@@ -79,7 +74,7 @@ class DopWrapper @Throws(IllegalArgumentException::class) constructor(
         arr[idx] = syncByte
         idx--
         for (i in 0..1) {
-            val data = mDsfReader!!.read(channel) ?: return false
+            val data = dsfReader.read(channel) ?: return false
             arr[idx] = data
             idx--
         }
