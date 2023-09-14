@@ -55,8 +55,8 @@ class HarmonicAnalyzerFramework {
         mAudioTrackSink.stop()
     }
 
-    fun addListener(listener: HarmonicAnalyzerListener?) {
-        harmonicAnalyzerSink.addListener(listener!!)
+    fun addListener(listener: HarmonicAnalyzerListener) {
+        harmonicAnalyzerSink.addListener(listener)
     }
 
     fun setInputDevice(inputDevice: AudioDeviceInfo?) {
