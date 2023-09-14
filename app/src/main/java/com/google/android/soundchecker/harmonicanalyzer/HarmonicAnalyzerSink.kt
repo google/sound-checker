@@ -54,7 +54,7 @@ class HarmonicAnalyzerSink : AudioSink() {
 
     fun runAudioLoop() {
         var count = 0
-        while (mThread?.isEnabled() != true) {
+        while (mThread?.isEnabled() == true) {
             val audioSource = mAudioSource!!
             val buffer = mBuffer!!
             // pull audio from source
