@@ -35,29 +35,26 @@ fun PortFader(
   horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
   verticalAlignment: Alignment.Vertical = Alignment.Top
 ) {
-  val resolution = 4096
   val labelText = remember { mutableStateOf(generateLabelText(controlPort)) }
   Row(modifier = modifier,
       horizontalArrangement = horizontalArrangement,
       verticalAlignment = verticalAlignment) {
     Text(text = labelText.value)
-    Slider(value = convertPortToFaderValue(controlPort, resolution),
-           valueRange = 0.0f..resolution.toFloat(),
+    Slider(value = convertPortToFaderValue(controlPort),
            onValueChange = {
-             updateControlPortValue(controlPort, it, resolution)
+             updateControlPortValue(controlPort, it)
              labelText.value = generateLabelText(controlPort)
-           },
-           steps = resolution)
+           })
   }
 }
 
-fun updateControlPortValue(controlPort: ControlPort, progress: Float, resolution: Int) {
-  val value = controlPort.mMinimum + progress * controlPort.range() / resolution
+fun updateControlPortValue(controlPort: ControlPort, progress: Float) {
+  val value = controlPort.mMinimum + progress * controlPort.range()
   controlPort.set(value)
 }
 
-fun convertPortToFaderValue(controlPort: ControlPort, resolution: Int) : Float {
-  return (controlPort.get() - controlPort.mMinimum) * resolution / controlPort.range()
+fun convertPortToFaderValue(controlPort: ControlPort) : Float {
+  return (controlPort.get() - controlPort.mMinimum) / controlPort.range()
 }
 
 fun generateLabelText(controlPort: ControlPort) : String {
