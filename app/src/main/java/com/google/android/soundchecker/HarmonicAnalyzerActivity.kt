@@ -37,6 +37,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
@@ -158,7 +160,9 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                         )
                     }
             ) { paddingValues ->
-                Column(modifier = Modifier.padding(paddingValues = paddingValues)) {
+                Column(
+                        modifier = Modifier.padding(paddingValues = paddingValues)
+                                .verticalScroll(rememberScrollState())) {
                     Divider(color = Color.Gray, thickness = 1.dp)
                     DevicePicker(
                             type = AudioManager.GET_DEVICES_INPUTS,
