@@ -37,6 +37,7 @@ class HarmonicAnalyzer {
         var totalHarmonicDistortionPlusNoise = 0.0
         var signalNoiseRatioDB = 0.0
         var peakAmplitude = 0.0
+        var harmonicDistortionBuckets: FloatArray? = null
     }
 
     var peakMargin: Int
@@ -87,18 +88,24 @@ class HarmonicAnalyzer {
             val bin = signalBin + i
             signalMagSquared += magnitudeSquared(buffer[bin], mImaginary!![bin])
         }
+        signalMagSquared = VERY_SMALL_NUMBER.coerceAtLeast(signalMagSquared)
 
         // Calculate Total Harmonic Distortion (THD)
-        var harmonicsMagSquared = 0.0f
+        var totalHarmonicsMagSquared = 0.0f
         val limit = numFrames / (2 * signalBin)
+        result.harmonicDistortionBuckets = FloatArray(limit - 1)
         for (harmonicScaler in 2 until limit) {
+            var harmonicsMagSquared = 0.0f
             for (i in (0 - mPeakMargin) until (1 + mPeakMargin)) {
                 val bin = (signalBin * harmonicScaler) + i
                 harmonicsMagSquared += magnitudeSquared(buffer[bin], mImaginary!![bin])
             }
+            var harmonicDistortion = sqrt((harmonicsMagSquared / signalMagSquared))
+            result.harmonicDistortionBuckets!![harmonicScaler - 2] = harmonicDistortion
+            totalHarmonicsMagSquared += harmonicsMagSquared
         }
-        signalMagSquared = VERY_SMALL_NUMBER.coerceAtLeast(signalMagSquared)
-        result.totalHarmonicDistortion = sqrt((harmonicsMagSquared / signalMagSquared).toDouble())
+
+        result.totalHarmonicDistortion = sqrt((totalHarmonicsMagSquared / signalMagSquared).toDouble())
 
         // Calculate Total Harmonic Distortion plus Noise (THD+N)
         var totalMagSquared = 0.0f

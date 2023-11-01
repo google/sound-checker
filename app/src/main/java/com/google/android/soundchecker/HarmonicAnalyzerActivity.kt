@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
@@ -69,6 +70,7 @@ import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerFramewor
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerListener
 import com.google.android.soundchecker.utils.deviceDisplayName
 import com.google.android.soundchecker.utils.ui.AudioDeviceListEntry
+import com.google.android.soundchecker.utils.ui.Waveform
 
 
 class HarmonicAnalyzerActivity : ComponentActivity() {
@@ -117,6 +119,7 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
 
     private var mParam = mutableStateOf("")
     private var mStatus = mutableStateOf("")
+    private var mHarmonicDistortionBuckets: FloatArray? = null
 
     private lateinit var mRequestPermissionLauncher: ActivityResultLauncher<String>
 
@@ -133,6 +136,7 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
     private var sumTHDN = 0.0
     private var sumSNR = 0.0
     private var averageCount = 0
+    private var sumHarmonicDistortionBuckets: FloatArray? = null
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -161,8 +165,9 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                     }
             ) { paddingValues ->
                 Column(
-                        modifier = Modifier.padding(paddingValues = paddingValues)
-                                .verticalScroll(rememberScrollState())) {
+                        modifier = Modifier
+                            .padding(paddingValues = paddingValues)
+                            .verticalScroll(rememberScrollState())) {
                     Divider(color = Color.Gray, thickness = 1.dp)
                     DevicePicker(
                             type = AudioManager.GET_DEVICES_INPUTS,
@@ -189,8 +194,8 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                         var expanded by remember { mutableStateOf(false) }
                         Box(
                                 modifier = Modifier
-                                        .fillMaxWidth()
-                                        .wrapContentSize(Alignment.CenterEnd)
+                                    .fillMaxWidth()
+                                    .wrapContentSize(Alignment.CenterEnd)
                         ) {
                             // Create the dropdown menu
                             DropdownMenu(
@@ -215,7 +220,7 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                                     .fillMaxWidth()
                                     .clickable(onClick = { expanded = true })
                                     .background(
-                                            Color.Gray
+                                        Color.Gray
                                     )
                             )
                         }
@@ -240,6 +245,11 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                     Text(text = mStatus.value,
                             style = MaterialTheme.typography.displaySmall,
                             fontWeight = FontWeight.Bold)
+                    Waveform(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        points = mHarmonicDistortionBuckets)
                 }
             }
         }
@@ -361,6 +371,15 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
             sumTHD += result.totalHarmonicDistortion
             sumTHDN += result.totalHarmonicDistortionPlusNoise
             sumSNR += result.signalNoiseRatioDB
+            if (sumHarmonicDistortionBuckets == null || sumHarmonicDistortionBuckets!!.size !=
+                    result.harmonicDistortionBuckets!!.size) {
+                sumHarmonicDistortionBuckets = result.harmonicDistortionBuckets
+            } else {
+                for (bucket in 0 until (result.harmonicDistortionBuckets!!.size)) {
+                    sumHarmonicDistortionBuckets!![bucket] += result
+                        .harmonicDistortionBuckets!![bucket]
+                }
+            }
             averageCount++
             if (averageCount == AVERAGE_SIZE) {
                 val averagePeakAmplitude = sumPeakAmplitude / AVERAGE_SIZE
@@ -385,6 +404,12 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                         averageTHDN * 100.0, '%',
                         averageSNR,
                         averagePeakDB)
+                mHarmonicDistortionBuckets = FloatArray(sumHarmonicDistortionBuckets!!.size)
+                for (bucket in 0 until (sumHarmonicDistortionBuckets!!.size)) {
+                    mHarmonicDistortionBuckets!![bucket] = sumHarmonicDistortionBuckets!![bucket] /
+                            AVERAGE_SIZE
+                }
+                sumHarmonicDistortionBuckets = null
             }
         }
     }
