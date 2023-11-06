@@ -70,7 +70,7 @@ import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerFramewor
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerListener
 import com.google.android.soundchecker.utils.deviceDisplayName
 import com.google.android.soundchecker.utils.ui.AudioDeviceListEntry
-import com.google.android.soundchecker.utils.ui.Waveform
+import com.google.android.soundchecker.utils.ui.WaveformDisplay
 
 
 class HarmonicAnalyzerActivity : ComponentActivity() {
@@ -245,11 +245,11 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                     Text(text = mStatus.value,
                             style = MaterialTheme.typography.displaySmall,
                             fontWeight = FontWeight.Bold)
-                    Waveform(
+                    WaveformDisplay(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(200.dp),
-                        points = mHarmonicDistortionBuckets)
+                        yValues = mHarmonicDistortionBuckets)
                 }
             }
         }
