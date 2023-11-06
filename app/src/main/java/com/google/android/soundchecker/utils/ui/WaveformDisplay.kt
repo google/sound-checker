@@ -29,7 +29,7 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.unit.dp
 
 /**
- * Compostable that displays a waveform.
+ * Composable that displays a waveform.
  * The graph goes from -1.0f to 1.0f as the y-axis.
  * This function accepts a modifier, which modifies only the outer box, and a set of yValues.
  *
