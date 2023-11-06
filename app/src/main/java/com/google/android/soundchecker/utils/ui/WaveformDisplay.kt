@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
  * The graph goes from -1.0f to 1.0f as the y-axis.
  * This function accepts a modifier, which modifies only the outer box, and a set of yValues.
  *
- * If the data is sparse, each value will have it's own bar.
+ * If the data is sparse, each value will have its own bar.
  * If the data is dense, each vertical bar will represent multiple samples.
  */
 @Composable
