@@ -31,8 +31,7 @@ import kotlin.math.log2
 
 /**
  * Composable that displays a waveform.
- * The graph goes from 0.0f to 1.0f for the y-axis.
- * This function accepts a modifier, which modifies only the outer box, and a set of yValues.
+ * This function accepts a modifier, which modifies the outer box, a set of yValues, yMin, and yMax.
  *
  * If the data is sparse, each value will have its own bar.
  * If the data is dense, each vertical bar will represent multiple samples.
