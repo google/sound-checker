@@ -29,6 +29,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,7 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -83,7 +85,7 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
         private const val SAMPLE_RATE = 48000
         private const val FFT_SIZE = 1024
         private const val AVERAGE_SIZE = 24
-        private val FREQUENCIES = listOf(1000, 1500, 2000)
+        private val FREQUENCIES = listOf(50, 100, 150, 200, 500, 1000, 1500, 2000)
         private var BIN_VALUES = buildList(FREQUENCIES.size) {
             FREQUENCIES.forEach { frequency ->
                 add(calculateNearestBin(frequency.toDouble()))
@@ -119,6 +121,7 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
 
     private var mParam = mutableStateOf("")
     private var mStatus = mutableStateOf("")
+    private var mUseLogDisplay = mutableStateOf(true)
     private var mHarmonicDistortionBuckets: FloatArray? = null
 
     private lateinit var mRequestPermissionLauncher: ActivityResultLauncher<String>
@@ -189,6 +192,16 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                     Spacer(modifier = Modifier.padding(4.dp))
                     Divider(color = Color.Gray, thickness = 1.dp)
                     Row {
+                        Text(text = "Use logarithmic display",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.align(Alignment.CenterVertically))
+                        Checkbox(
+                            checked = mUseLogDisplay.value,
+                            onCheckedChange = { mUseLogDisplay.value = it }
+                        )
+                    }
+                    Row {
                         Text(text = "Frequency (bin)")
                         Spacer(modifier = Modifier.padding(4.dp))
                         var expanded by remember { mutableStateOf(false) }
@@ -248,8 +261,12 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                     WaveformDisplay(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp),
-                        yValues = mHarmonicDistortionBuckets)
+                            .height(200.dp)
+                            .border(1.dp, Color.Gray)
+                            .background(Color.LightGray)
+                            .padding(horizontal = 4.dp, vertical = 4.dp),
+                        yValues = mHarmonicDistortionBuckets,
+                        useLogDisplay = mUseLogDisplay.value)
                 }
             }
         }

@@ -94,15 +94,17 @@ class HarmonicAnalyzer {
         var totalHarmonicsMagSquared = 0.0f
         val limit = numFrames / (2 * signalBin)
         result.harmonicDistortionBuckets = FloatArray(limit - 1)
-        for (harmonicScaler in 2 until limit) {
+        for (harmonicScaler in 1 until limit) {
             var harmonicsMagSquared = 0.0f
             for (i in (0 - mPeakMargin) until (1 + mPeakMargin)) {
                 val bin = (signalBin * harmonicScaler) + i
                 harmonicsMagSquared += magnitudeSquared(buffer[bin], mImaginary!![bin])
             }
             var harmonicDistortion = sqrt((harmonicsMagSquared / signalMagSquared))
-            result.harmonicDistortionBuckets!![harmonicScaler - 2] = harmonicDistortion
-            totalHarmonicsMagSquared += harmonicsMagSquared
+            result.harmonicDistortionBuckets!![harmonicScaler - 1] = harmonicDistortion
+            if (harmonicScaler > 1) {
+                totalHarmonicsMagSquared += harmonicsMagSquared
+            }
         }
 
         result.totalHarmonicDistortion = sqrt((totalHarmonicsMagSquared / signalMagSquared).toDouble())
