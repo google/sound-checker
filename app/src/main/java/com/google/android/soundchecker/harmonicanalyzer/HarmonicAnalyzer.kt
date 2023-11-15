@@ -18,6 +18,7 @@ package com.google.android.soundchecker.harmonicanalyzer
 
 import kotlin.math.abs
 import kotlin.math.ln
+import kotlin.math.max
 import kotlin.math.sqrt
 
 import com.google.android.soundchecker.utils.FastFourierTransform
@@ -37,7 +38,7 @@ class HarmonicAnalyzer {
         var totalHarmonicDistortionPlusNoise = 0.0
         var signalNoiseRatioDB = 0.0
         var peakAmplitude = 0.0
-        var harmonicDistortionBuckets: FloatArray? = null
+        var bins: FloatArray? = null
     }
 
     var peakMargin: Int
@@ -93,17 +94,10 @@ class HarmonicAnalyzer {
         // Calculate Total Harmonic Distortion (THD)
         var totalHarmonicsMagSquared = 0.0f
         val limit = numFrames / (2 * signalBin)
-        result.harmonicDistortionBuckets = FloatArray(limit - 1)
-        for (harmonicScaler in 1 until limit) {
-            var harmonicsMagSquared = 0.0f
+        for (harmonicScaler in 2 until limit) {
             for (i in (0 - mPeakMargin) until (1 + mPeakMargin)) {
                 val bin = (signalBin * harmonicScaler) + i
-                harmonicsMagSquared += magnitudeSquared(buffer[bin], mImaginary!![bin])
-            }
-            var harmonicDistortion = sqrt((harmonicsMagSquared / signalMagSquared))
-            result.harmonicDistortionBuckets!![harmonicScaler - 1] = harmonicDistortion
-            if (harmonicScaler > 1) {
-                totalHarmonicsMagSquared += harmonicsMagSquared
+                totalHarmonicsMagSquared += magnitudeSquared(buffer[bin], mImaginary!![bin])
             }
         }
 
@@ -124,6 +118,16 @@ class HarmonicAnalyzer {
         // Calculate Signal To Noise Ratio in dB
         val signalNoisePowerRatio = signalMagSquared / noiseMagSquared
         result.signalNoiseRatioDB = powerToDecibels(signalNoisePowerRatio.toDouble())
+
+        var peakMagSquared = VERY_SMALL_NUMBER
+        for (i in 0 until numFrames / 2) {
+            peakMagSquared = max(peakMagSquared, magnitudeSquared(buffer[i], mImaginary!![i]))
+        }
+        result.bins = FloatArray(numFrames / 2)
+        for (i in 0 until numFrames / 2) {
+            result.bins!![i] = sqrt(magnitudeSquared(buffer[i],
+                    mImaginary!![i]) / peakMagSquared)
+        }
         return result
     }
 

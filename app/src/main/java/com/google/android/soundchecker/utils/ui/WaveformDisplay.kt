@@ -41,24 +41,11 @@ import kotlin.math.log2
 fun WaveformDisplay(
     modifier : Modifier,
     yValues: FloatArray?,
-    useLogDisplay: Boolean
+    yMin: Float = -1.0F,
+    yMax: Float = 1.0F
 ) {
     if (yValues == null || yValues.size < 1) {
         return;
-    }
-    var yValuesArray = yValues
-
-    // Use indexes 0, 1, 3, 7, 15, etc
-    if (useLogDisplay) {
-        var exponentialYValues = FloatArray(log2(yValues.size) + 1)
-        var multipleOfTwo = 1
-        var yValuesIndex = 0
-        while (multipleOfTwo - 1 < yValues.size) {
-            exponentialYValues[yValuesIndex] = yValues[multipleOfTwo - 1]
-            multipleOfTwo *= 2
-            yValuesIndex++
-        }
-        yValuesArray = exponentialYValues
     }
 
     Box(
@@ -68,16 +55,16 @@ fun WaveformDisplay(
         Canvas(
             modifier = Modifier.fillMaxSize(),
         ) {
-            val offsetY = 1.0f * size.height;
-            val scaleY = 0.0f - offsetY;
+            val offsetY = yMax / (yMax - yMin) * size.height;
+            val scaleY = -1.0f / (yMax - yMin) * size.height;
 
-            val xScale = size.width / (yValuesArray.size - 1)
+            val xScale = size.width / (yValues.size - 1)
             var x0 = 0.0f
             if (xScale < 1.0) {
                 // Draw a vertical bar for multiple samples.
                 var ymin = offsetY
                 var ymax = offsetY
-                for (i in 0 until yValuesArray.size) {
+                for (i in 0 until yValues.size) {
                     val x1 = i * xScale
                     if (x0.toInt() != x1.toInt()) {
                         // draw old data
@@ -90,16 +77,16 @@ fun WaveformDisplay(
                         ymin = offsetY;
                         ymax = offsetY;
                     }
-                    val y1: Float = yValuesArray.get(i) * scaleY + offsetY
+                    val y1: Float = yValues.get(i) * scaleY + offsetY
                     ymin = Math.min(ymin, y1)
                     ymax = Math.max(ymax, y1)
                 }
             } else {
                 // Draw line between samples.
-                var y0: Float = yValuesArray.get(0) * scaleY + offsetY
-                for (i in 1 until yValuesArray.size) {
+                var y0: Float = yValues.get(0) * scaleY + offsetY
+                for (i in 1 until yValues.size) {
                     val x1 = i * xScale
-                    val y1: Float = yValuesArray.get(i) * scaleY + offsetY
+                    val y1: Float = yValues.get(i) * scaleY + offsetY
                     drawLine(
                         start = Offset(x0, y0),
                         end = Offset(x0, y1),
@@ -111,8 +98,4 @@ fun WaveformDisplay(
             }
         }
     }
-}
-
-private fun log2(n: Int): Int {
-    return 31 - Integer.numberOfLeadingZeros(n)
 }
