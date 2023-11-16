@@ -119,15 +119,18 @@ class HarmonicAnalyzer {
         val signalNoisePowerRatio = signalMagSquared / noiseMagSquared
         result.signalNoiseRatioDB = powerToDecibels(signalNoisePowerRatio.toDouble())
 
+        // Two pass algorithm to calculate magnitude of each frequency bin.
         var peakMagSquared = VERY_SMALL_NUMBER
-        for (i in 0 until numFrames / 2) {
-            peakMagSquared = max(peakMagSquared, magnitudeSquared(buffer[i], mImaginary!![i]))
-        }
         result.bins = FloatArray(numFrames / 2)
         for (i in 0 until numFrames / 2) {
-            result.bins!![i] = sqrt(magnitudeSquared(buffer[i],
-                    mImaginary!![i]) / peakMagSquared)
+            result.bins!![i] = sqrt(magnitudeSquared(buffer[i], mImaginary!![i]))
+            peakMagSquared = max(peakMagSquared, result.bins!![i])
         }
+        val scaler = 1F / peakMagSquared
+        for (i in 0 until numFrames / 2) {
+            result.bins!![i] *= scaler
+        }
+
         return result
     }
 
