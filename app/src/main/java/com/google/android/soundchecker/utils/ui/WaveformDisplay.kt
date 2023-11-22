@@ -27,11 +27,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.unit.dp
+import kotlin.math.log2
 
 /**
  * Composable that displays a waveform.
- * The graph goes from -1.0f to 1.0f as the y-axis.
- * This function accepts a modifier, which modifies only the outer box, and a set of yValues.
+ * This function accepts a modifier, which modifies the outer box, a set of yValues, yMin, and yMax.
  *
  * If the data is sparse, each value will have its own bar.
  * If the data is dense, each vertical bar will represent multiple samples.
@@ -40,21 +40,22 @@ import androidx.compose.ui.unit.dp
 fun WaveformDisplay(
     modifier : Modifier,
     yValues: FloatArray?,
+    yMin: Float = -1.0F,
+    yMax: Float = 1.0F
 ) {
-    if (yValues == null) {
+    if (yValues == null || yValues.size < 1) {
         return;
     }
+
     Box(
-        modifier = modifier
-            .background(Color.White)
-            .padding(horizontal = 8.dp, vertical = 12.dp),
+        modifier = modifier,
         contentAlignment = Center
     ) {
         Canvas(
             modifier = Modifier.fillMaxSize(),
         ) {
-            val offsetY = 0.5f * size.height;
-            val scaleY = 0.0f - offsetY;
+            val offsetY = yMax / (yMax - yMin) * size.height;
+            val scaleY = -1.0f / (yMax - yMin) * size.height;
 
             val xScale = size.width / (yValues.size - 1)
             var x0 = 0.0f

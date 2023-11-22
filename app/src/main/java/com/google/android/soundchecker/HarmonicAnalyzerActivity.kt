@@ -29,6 +29,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,7 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -66,6 +68,7 @@ import kotlinx.coroutines.flow.update
 
 import com.google.android.soundchecker.harmonicanalyzer.DevicePicker
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzer
+import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzer.Companion.amplitudeToDecibels
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerFramework
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerListener
 import com.google.android.soundchecker.utils.deviceDisplayName
@@ -94,6 +97,9 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                 add(String.format("%8.3f Hz, bin#%d", calculateBinFrequency(bin), bin))
             }
         }
+
+        private const val MIN_DECIBELS = -120F
+
         private fun calculateBinFrequency(bin: Int): Double {
             return SAMPLE_RATE.toDouble() * bin / FFT_SIZE
         }
@@ -119,7 +125,8 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
 
     private var mParam = mutableStateOf("")
     private var mStatus = mutableStateOf("")
-    private var mHarmonicDistortionBuckets: FloatArray? = null
+    private var mUseLogDisplay = mutableStateOf(true)
+    private var mBins: FloatArray? = null
 
     private lateinit var mRequestPermissionLauncher: ActivityResultLauncher<String>
 
@@ -131,12 +138,14 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
     private var mFundamentalBin = 0
 
     // Display average value so it does not jump around so much.
-    private var sumPeakAmplitude = 0.0
-    private var sumTHD = 0.0
-    private var sumTHDN = 0.0
-    private var sumSNR = 0.0
-    private var averageCount = 0
-    private var sumHarmonicDistortionBuckets: FloatArray? = null
+    private var mSumPeakAmplitude = 0.0
+    private var mSumTHD = 0.0
+    private var mSumTHDN = 0.0
+    private var mSumSNR = 0.0
+    private var mAverageCount = 0
+    private var mSumBins: FloatArray? = null
+    private var mMinGraphValue = 0F
+    private var mMaxGraphValue = 1F
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -188,6 +197,16 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                     )
                     Spacer(modifier = Modifier.padding(4.dp))
                     Divider(color = Color.Gray, thickness = 1.dp)
+                    Row {
+                        Text(text = "Use logarithmic display",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.align(Alignment.CenterVertically))
+                        Checkbox(
+                            checked = mUseLogDisplay.value,
+                            onCheckedChange = { mUseLogDisplay.value = it }
+                        )
+                    }
                     Row {
                         Text(text = "Frequency (bin)")
                         Spacer(modifier = Modifier.padding(4.dp))
@@ -243,13 +262,18 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                     Text(text = mParam.value)
                     Spacer(modifier = Modifier.padding(4.dp))
                     Text(text = mStatus.value,
-                            style = MaterialTheme.typography.displaySmall,
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold)
                     WaveformDisplay(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp),
-                        yValues = mHarmonicDistortionBuckets)
+                            .height(200.dp)
+                            .border(1.dp, Color.Gray)
+                            .background(Color.LightGray)
+                            .padding(horizontal = 4.dp, vertical = 4.dp),
+                        yValues = mBins,
+                        yMax = mMaxGraphValue,
+                        yMin = mMinGraphValue)
                 }
             }
         }
@@ -367,31 +391,30 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
 
     private inner class MyHarmonicAnalyzerListener : HarmonicAnalyzerListener {
         override fun onMeasurement(analysisCount: Int, result: HarmonicAnalyzer.Result) {
-            sumPeakAmplitude += result.peakAmplitude
-            sumTHD += result.totalHarmonicDistortion
-            sumTHDN += result.totalHarmonicDistortionPlusNoise
-            sumSNR += result.signalNoiseRatioDB
-            if (sumHarmonicDistortionBuckets == null || sumHarmonicDistortionBuckets!!.size !=
-                    result.harmonicDistortionBuckets!!.size) {
-                sumHarmonicDistortionBuckets = result.harmonicDistortionBuckets
+            mSumPeakAmplitude += result.peakAmplitude
+            mSumTHD += result.totalHarmonicDistortion
+            mSumTHDN += result.totalHarmonicDistortionPlusNoise
+            mSumSNR += result.signalNoiseRatioDB
+            if (mSumBins == null || mSumBins!!.size !=
+                    result.bins!!.size) {
+                mSumBins = result.bins
             } else {
-                for (bucket in 0 until (result.harmonicDistortionBuckets!!.size)) {
-                    sumHarmonicDistortionBuckets!![bucket] += result
-                        .harmonicDistortionBuckets!![bucket]
+                for (bucket in 0 until (result.bins!!.size)) {
+                    mSumBins!![bucket] += result.bins!![bucket]
                 }
             }
-            averageCount++
-            if (averageCount == AVERAGE_SIZE) {
-                val averagePeakAmplitude = sumPeakAmplitude / AVERAGE_SIZE
+            mAverageCount++
+            if (mAverageCount == AVERAGE_SIZE) {
+                val averagePeakAmplitude = mSumPeakAmplitude / AVERAGE_SIZE
                 val averagePeakDB = HarmonicAnalyzer.amplitudeToDecibels(averagePeakAmplitude)
-                val averageTHD = sumTHD / AVERAGE_SIZE
-                val averageTHDN = sumTHDN / AVERAGE_SIZE
-                val averageSNR = sumSNR / AVERAGE_SIZE
-                averageCount = 0
-                sumPeakAmplitude = 0.0
-                sumTHD = 0.0
-                sumTHDN = 0.0
-                sumSNR = 0.0
+                val averageTHD = mSumTHD / AVERAGE_SIZE
+                val averageTHDN = mSumTHDN / AVERAGE_SIZE
+                val averageSNR = mSumSNR / AVERAGE_SIZE
+                mAverageCount = 0
+                mSumPeakAmplitude = 0.0
+                mSumTHD = 0.0
+                mSumTHDN = 0.0
+                mSumSNR = 0.0
                 mStatus.value = """
                     analysis #%04d
                     THD   = %6.4f%c
@@ -404,12 +427,21 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                         averageTHDN * 100.0, '%',
                         averageSNR,
                         averagePeakDB)
-                mHarmonicDistortionBuckets = FloatArray(sumHarmonicDistortionBuckets!!.size)
-                for (bucket in 0 until (sumHarmonicDistortionBuckets!!.size)) {
-                    mHarmonicDistortionBuckets!![bucket] = sumHarmonicDistortionBuckets!![bucket] /
-                            AVERAGE_SIZE
+                mBins = FloatArray(mSumBins!!.size)
+                for (bucket in 0 until (mSumBins!!.size)) {
+                    var avgValue = mSumBins!![bucket] / AVERAGE_SIZE
+                    if (mUseLogDisplay.value) {
+                        mBins!![bucket] = amplitudeToDecibels(avgValue
+                            .toDouble()).toFloat()
+                        mMinGraphValue = MIN_DECIBELS
+                        mMaxGraphValue = 0F
+                    } else {
+                        mBins!![bucket] = avgValue
+                        mMinGraphValue = 0F
+                        mMaxGraphValue = 1F
+                    }
                 }
-                sumHarmonicDistortionBuckets = null
+                mSumBins = null
             }
         }
     }

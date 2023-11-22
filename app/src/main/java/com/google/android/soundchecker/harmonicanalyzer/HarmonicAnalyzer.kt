@@ -18,6 +18,7 @@ package com.google.android.soundchecker.harmonicanalyzer
 
 import kotlin.math.abs
 import kotlin.math.ln
+import kotlin.math.max
 import kotlin.math.sqrt
 
 import com.google.android.soundchecker.utils.FastFourierTransform
@@ -37,7 +38,7 @@ class HarmonicAnalyzer {
         var totalHarmonicDistortionPlusNoise = 0.0
         var signalNoiseRatioDB = 0.0
         var peakAmplitude = 0.0
-        var harmonicDistortionBuckets: FloatArray? = null
+        var bins: FloatArray? = null
     }
 
     var peakMargin: Int
@@ -93,16 +94,11 @@ class HarmonicAnalyzer {
         // Calculate Total Harmonic Distortion (THD)
         var totalHarmonicsMagSquared = 0.0f
         val limit = numFrames / (2 * signalBin)
-        result.harmonicDistortionBuckets = FloatArray(limit - 1)
         for (harmonicScaler in 2 until limit) {
-            var harmonicsMagSquared = 0.0f
             for (i in (0 - mPeakMargin) until (1 + mPeakMargin)) {
                 val bin = (signalBin * harmonicScaler) + i
-                harmonicsMagSquared += magnitudeSquared(buffer[bin], mImaginary!![bin])
+                totalHarmonicsMagSquared += magnitudeSquared(buffer[bin], mImaginary!![bin])
             }
-            var harmonicDistortion = sqrt((harmonicsMagSquared / signalMagSquared))
-            result.harmonicDistortionBuckets!![harmonicScaler - 2] = harmonicDistortion
-            totalHarmonicsMagSquared += harmonicsMagSquared
         }
 
         result.totalHarmonicDistortion = sqrt((totalHarmonicsMagSquared / signalMagSquared).toDouble())
@@ -122,6 +118,19 @@ class HarmonicAnalyzer {
         // Calculate Signal To Noise Ratio in dB
         val signalNoisePowerRatio = signalMagSquared / noiseMagSquared
         result.signalNoiseRatioDB = powerToDecibels(signalNoisePowerRatio.toDouble())
+
+        // Two pass algorithm to calculate normalized magnitude of each frequency bin.
+        var peakMagnitude = VERY_SMALL_NUMBER
+        result.bins = FloatArray(numFrames / 2)
+        for (i in 0 until numFrames / 2) {
+            result.bins!![i] = sqrt(magnitudeSquared(buffer[i], mImaginary!![i]))
+            peakMagnitude = max(peakMagnitude, result.bins!![i])
+        }
+        val scaler = 1F / peakMagnitude
+        for (i in 0 until numFrames / 2) {
+            result.bins!![i] *= scaler
+        }
+
         return result
     }
 
