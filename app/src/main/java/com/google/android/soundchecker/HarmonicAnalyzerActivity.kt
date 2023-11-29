@@ -98,7 +98,7 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
             }
         }
 
-        private const val MIN_DECIBELS = -120F
+        private const val MIN_DECIBELS = -160F
 
         private fun calculateBinFrequency(bin: Int): Double {
             return SAMPLE_RATE.toDouble() * bin / FFT_SIZE
@@ -264,7 +264,6 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                         yValues = mBins,
                         yMax = mMaxGraphValue,
                         yMin = mMinGraphValue)
-                    Spacer(modifier = Modifier.padding(4.dp))
                     Row {
                         Text(text = "Use logarithmic display",
                             style = MaterialTheme.typography.bodyLarge,
