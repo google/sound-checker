@@ -98,7 +98,7 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
             }
         }
 
-        private const val MIN_DECIBELS = -120F
+        private const val MIN_DECIBELS = -160F
 
         private fun calculateBinFrequency(bin: Int): Double {
             return SAMPLE_RATE.toDouble() * bin / FFT_SIZE
@@ -198,16 +198,6 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                     Spacer(modifier = Modifier.padding(4.dp))
                     Divider(color = Color.Gray, thickness = 1.dp)
                     Row {
-                        Text(text = "Use logarithmic display",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.align(Alignment.CenterVertically))
-                        Checkbox(
-                            checked = mUseLogDisplay.value,
-                            onCheckedChange = { mUseLogDisplay.value = it }
-                        )
-                    }
-                    Row {
                         Text(text = "Frequency (bin)")
                         Spacer(modifier = Modifier.padding(4.dp))
                         var expanded by remember { mutableStateOf(false) }
@@ -274,6 +264,16 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
                         yValues = mBins,
                         yMax = mMaxGraphValue,
                         yMin = mMinGraphValue)
+                    Row {
+                        Text(text = "Use logarithmic display",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.align(Alignment.CenterVertically))
+                        Checkbox(
+                            checked = mUseLogDisplay.value,
+                            onCheckedChange = { mUseLogDisplay.value = it }
+                        )
+                    }
                 }
             }
         }
