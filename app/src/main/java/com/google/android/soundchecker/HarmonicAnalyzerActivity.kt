@@ -98,7 +98,7 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
             }
         }
 
-        private const val MIN_DECIBELS = -200F
+        private const val MIN_DECIBELS = -250F
 
         private fun calculateBinFrequency(bin: Int): Double {
             return SAMPLE_RATE.toDouble() * bin / FFT_SIZE
