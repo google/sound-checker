@@ -16,6 +16,9 @@
 
 package com.google.android.soundchecker.utils
 
+import android.util.Log
+import com.google.android.soundchecker.mediacodec.AudioEncoderSource
+import java.util.Arrays
 import kotlin.math.sin
 
 class SineSource : AudioSource() {
@@ -23,6 +26,10 @@ class SineSource : AudioSource() {
     private val mAmplitudePort = ControlPort("amplitude", 0.0f, 0.1f, 1.0f)
     private var mPhase = 0.0
     private var mPhaseIncrement = 0.0
+
+    companion object {
+        private const val TAG = "SineSource"
+    }
 
     fun getFrequencyPort(): ControlPort {
         return mFrequencyPort
@@ -53,8 +60,20 @@ class SineSource : AudioSource() {
     override fun pull(buffer: ByteArray, numFrames: Int): Int {
         val floatArray = FloatArray(numFrames * getChannelCount())
         pull(floatArray, numFrames)
+        //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
         floatArrayToByteArray(floatArray, buffer)
+        //Log.d(TAG, "byteArray: " + Arrays.toString(buffer))
         return numFrames
+    }
+
+    // Pull I16 bytes
+    override fun pull(numBytes: Int, buffer: ByteArray): Int {
+        val floatArray = FloatArray(numBytes / 2 * getChannelCount())
+        pull(floatArray, numBytes / 2)
+        //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
+        floatArrayToI16ByteArray(floatArray, buffer)
+        //Log.d(TAG, "byteArray: " + Arrays.toString(buffer))
+        return numBytes / 2
     }
 
     override fun pull(buffer: FloatArray, numFrames: Int): Int {

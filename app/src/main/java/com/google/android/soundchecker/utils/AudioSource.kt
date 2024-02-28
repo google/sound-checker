@@ -32,6 +32,11 @@ open class AudioSource : AudioEndpoint(true) {
         return 0
     }
 
+    open fun pull(numBytes: Int, buffer: ByteArray): Int {
+        // Default implementation, do nothing
+        return 0
+    }
+
     fun connect(sink: AudioSink) {
         sink.setSource(this)
     }

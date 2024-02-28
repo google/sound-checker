@@ -47,6 +47,35 @@ fun floatArrayToByteArray(floatArray: FloatArray, byteArray: ByteArray) {
     }
 }
 
+fun byteArrayToFloatArray(byteArray: ByteArray, floatArray: FloatArray) {
+    for (i in floatArray.indices) {
+        val bi = i * 4
+        floatArray[i] = Float.fromBits(
+            (byteArray[bi + 3].toInt() and 0xff shl 24) or
+                    (byteArray[bi + 2].toInt() and 0xff shl 16) or
+                    (byteArray[bi + 1].toInt() and 0xff shl 8) or
+                    (byteArray[bi].toInt() and 0xff)
+        )
+    }
+}
+
+fun i16ByteArrayToFloatArray(byteArray: ByteArray, floatArray: FloatArray) {
+    for (i in floatArray.indices) {
+        val bi = i * 2
+        floatArray[i] = ((byteArray[bi + 1].toInt() and 0xff shl 8) or
+                (byteArray[bi].toInt() and 0xff)).toShort().toFloat() * (1.0f / 32768)
+    }
+}
+
+fun floatArrayToI16ByteArray(floatArray: FloatArray, byteArray: ByteArray) {
+    for (i in floatArray.indices) {
+        val bi = i * 2
+        val shortVal = (floatArray[i] * 32768.0f / 1.0f).toInt()
+        byteArray[bi] = (shortVal and 0xff).toByte()
+        byteArray[bi + 1] = (shortVal shr 8 and 0xff).toByte()
+    }
+}
+
 fun AudioDeviceInfo.highestChannelCount() : Int {
     return if (channelCounts.isEmpty()) 3
     else channelCounts.max()

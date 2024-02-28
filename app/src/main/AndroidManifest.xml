@@ -67,6 +67,12 @@
         android:label="@string/test_harmonic_distortion"
         android:theme="@style/Theme.SoundChecker">
     </activity>
+    <activity
+        android:name=".AudioEncoderDecoderActivity"
+        android:exported="true"
+        android:label="@string/test_audio_encoder_decoder"
+        android:theme="@style/Theme.SoundChecker">
+    </activity>
   </application>
 
 </manifest>
