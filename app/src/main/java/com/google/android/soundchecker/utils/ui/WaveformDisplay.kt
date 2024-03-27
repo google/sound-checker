@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,15 @@
 package com.google.android.soundchecker.utils.ui
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.unit.dp
-import kotlin.math.log2
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Composable that displays a waveform.
@@ -76,7 +74,8 @@ fun WaveformDisplay(
                         ymin = offsetY;
                         ymax = offsetY;
                     }
-                    val y1: Float = yValues.get(i) * scaleY + offsetY
+                    val valInBounds = max(min(yValues.get(i), yMax), yMin)
+                    val y1: Float = valInBounds * scaleY + offsetY
                     ymin = Math.min(ymin, y1)
                     ymax = Math.max(ymax, y1)
                 }

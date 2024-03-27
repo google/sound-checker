@@ -16,34 +16,39 @@
 
 package com.google.android.soundchecker.mediacodec
 
-import android.media.AudioDeviceInfo
-import android.media.AudioFormat
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerListener
-import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerSink
 
-import com.google.android.soundchecker.utils.AudioRecordSource
-import com.google.android.soundchecker.utils.AudioTrackSink
 import com.google.android.soundchecker.utils.SineSource
-import com.google.android.soundchecker.utils.highestChannelCount
+import java.io.File
 
-class AudioEncoderDecoderFramework (val codec: String, val sampleRate: Int, val channelCount: Int,
-                                    val bitRate: Int, val flacCompressionLevel: Int, val
-                                    pcmEncoding: Int) {
+class AudioEncoderDecoderFramework (codec: String, sampleRate: Int, channelCount: Int,
+                                    bitRate: Int, flacCompressionLevel: Int,
+                                    pcmEncoding: Int, usePitchSweep: Boolean, outputFile:
+                                    File) {
     private var mSineSource = SineSource()
     private var mAudioEncoderSource = AudioEncoderSource(codec, sampleRate, channelCount,
         bitRate, flacCompressionLevel, pcmEncoding)
     private var mAudioDecoderSource = AudioDecoderSource()
-    var harmonicAnalyzerSink = AudioEncoderDecoderHarmonicAnalyzerSink()
+    var harmonicAnalyzerSink = AudioEncoderDecoderHarmonicAnalyzerSink(outputFile)
     private var mSineFrequency = 1000.0 // overwrite this with bin frequency
 
     init {
         // Output
         mSineSource.getAmplitudePort().set(0.5f)
         mSineSource.mSampleRate = sampleRate
+        if (usePitchSweep) {
+            mSineSource.enableSineSweep()
+            mSineSource.getFrequencyPort().mMinimum = sampleRate / 1000.0F
+            mSineSource.getFrequencyPort().mMaximum = sampleRate / 2.3F // Close to Nyquist
+        }
         mAudioEncoderSource.setSource(mSineSource)
         mAudioDecoderSource.setSource(mAudioEncoderSource)
         mAudioEncoderSource.setDecoder(mAudioDecoderSource)
         harmonicAnalyzerSink.setSource(mAudioDecoderSource)
+        harmonicAnalyzerSink.mSampleRate = sampleRate
+        harmonicAnalyzerSink.mChannelCount = channelCount
+        harmonicAnalyzerSink.mFundamentalBin = harmonicAnalyzerSink.calculateNearestBin(
+                AudioEncoderDecoderHarmonicAnalyzerSink.TARGET_FREQUENCY)
     }
 
     fun start() {

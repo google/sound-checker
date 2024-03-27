@@ -134,7 +134,7 @@ class AudioEncoderSource(val codec: String, sampleRate: Int, channelCount: Int,
                 inputBuffer.put(inputArray)
                 inputBuffer.flip()
                 encoder.queueInputBuffer(inputIndex, 0, getBytesPerFrame() * framesToProcess, 0, 0)
-                Log.d(TAG, " " + inputIndex + " " + getBytesPerFrame() * framesToProcess)
+                //Log.d(TAG, " " + inputIndex + " " + getBytesPerFrame() * framesToProcess)
             }
 
             val bufferInfo = MediaCodec.BufferInfo()

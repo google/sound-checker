@@ -18,6 +18,7 @@ package com.google.android.soundchecker.utils
 
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
+import kotlin.math.ln
 
 fun Int.bytesPerSample(): Int = when (this) {
     AudioFormat.ENCODING_PCM_8BIT -> 1
@@ -151,4 +152,48 @@ fun typeToString(type: Int): String {
         AudioDeviceInfo.TYPE_UNKNOWN -> "unknown"
         else -> "unknown"
     }
+}
+
+// Remap a linear FloatArray to log scale
+
+// [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0], 10 becomes
+// [1.0, 1.0, 1.0, 2.0, 3.0, 3.0, 4.5, 6.0, 7.0, 9.0]
+fun remapToLog(input: FloatArray, outputSize: Int): FloatArray {
+    val inputSize = input.size
+    val output = FloatArray(outputSize)
+    var inputIndex = 0
+    var nextInputVal = ln(inputIndex + 2.0f)
+    val linearEnd = ln(inputSize.toFloat())
+    val linearIncrement = linearEnd / outputSize
+    for (outputIndex in 0 until outputSize) {
+        val outputVal = (outputIndex + 1) * linearIncrement
+        var sum = 0.0f
+        var count = 0
+        var isFirstIndex = true
+        while (nextInputVal < outputVal + .0001f) {
+            // Skip the first index if it's smaller as the previous case already counted for it.
+            if (!isFirstIndex) {
+                sum += input[inputIndex]
+                count++
+            } else {
+                isFirstIndex = false
+            }
+            inputIndex++
+            nextInputVal = ln(inputIndex + 2.0f)
+        }
+        sum += input[inputIndex]
+        count++
+        // Add in the few remaining values
+        if (outputIndex == outputSize - 1) {
+            while (inputIndex < inputSize) {
+                sum += input[inputIndex]
+                count++
+                inputIndex++
+            }
+
+
+        }
+        output[outputIndex] = sum / count
+    }
+    return output
 }

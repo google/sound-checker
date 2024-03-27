@@ -16,20 +16,14 @@
 
 package com.google.android.soundchecker
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.media.AudioDeviceCallback
-import android.media.AudioDeviceInfo
+import android.content.Intent
 import android.media.AudioFormat
-import android.media.AudioManager
 import android.media.MediaFormat
 import android.os.Bundle
-import android.util.Log
+import android.os.Environment
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -63,20 +57,21 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
-import kotlin.math.roundToInt
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
-
-import com.google.android.soundchecker.harmonicanalyzer.DevicePicker
+import androidx.core.content.FileProvider
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzer
-import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzer.Companion.amplitudeToDecibels
-import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerFramework
+import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzer.Companion
+.amplitudeToDecibels
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerListener
 import com.google.android.soundchecker.mediacodec.AudioEncoderDecoderFramework
-import com.google.android.soundchecker.utils.deviceDisplayName
-import com.google.android.soundchecker.utils.ui.AudioDeviceListEntry
+import com.google.android.soundchecker.utils.remapToLog
+import com.google.android.soundchecker.utils.ui.SpectogramDisplay
 import com.google.android.soundchecker.utils.ui.WaveformDisplay
+import java.io.File
+import java.text.DateFormat
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import kotlin.math.roundToInt
 
 
 class AudioEncoderDecoderActivity : ComponentActivity() {
@@ -84,7 +79,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         const val TAG = "AudioEncoderDecoderActivity"
 
         private const val FFT_SIZE = 1024
-        private const val AVERAGE_SIZE = 24
+        private const val AVERAGE_SIZE = 1
         private val FREQUENCY = 1000
         private val AUDIO_CODECS = listOf(
             MediaFormat.MIMETYPE_AUDIO_AAC, MediaFormat.MIMETYPE_AUDIO_OPUS, MediaFormat.MIMETYPE_AUDIO_AMR_NB,
@@ -94,6 +89,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         private val BITRATES = listOf(6000, 10000, 20000, 64000, 128000)
         private val FLAC_COMPRESSION_LEVELS = (0..8).toList()
         private val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_FLOAT
+        private val WAVEFORM_HEIGHT = 200
+        private val SPECTOGRAM_WIDTH = 300
 
         private const val MIN_DECIBELS = -160F
 
@@ -108,11 +105,13 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
 
     private var mStartButtonEnabled = mutableStateOf(true)
     private var mStopButtonEnabled = mutableStateOf(false)
+    private var mShareButtonEnabled = mutableStateOf(false)
+    private var mPlaySineSweep = mutableStateOf(false)
 
     private var mParam = mutableStateOf("")
     private var mStatus = mutableStateOf("")
-    private var mUseLogDisplay = mutableStateOf(true)
     private var mBins: FloatArray? = null
+    private var mSpectogram: MutableList<FloatArray?>? = null
 
     private var mSpinnersEnabled = mutableStateOf(true)
     private var mSampleRateText = mutableStateOf("")
@@ -127,15 +126,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mBitrate = 0;
     private var mFlacCompressionLevel = 0;
 
-    // Display average value so it does not jump around so much.
-    private var mSumPeakAmplitude = 0.0
-    private var mSumTHD = 0.0
-    private var mSumTHDN = 0.0
-    private var mSumSNR = 0.0
-    private var mAverageCount = 0
-    private var mSumBins: FloatArray? = null
-    private var mMinGraphValue = 0F
-    private var mMaxGraphValue = 1F
+    private var mFile: File? = null
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -308,6 +299,18 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     }
                     Spacer(modifier = Modifier.padding(4.dp))
                     Row {
+                        Text(text = "Play sine sweep",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.align(Alignment.CenterVertically))
+                        Checkbox(
+                            checked = mPlaySineSweep.value,
+                            onCheckedChange = { mPlaySineSweep.value = it },
+                            enabled = mSpinnersEnabled.value
+                        )
+                    }
+                    Spacer(modifier = Modifier.padding(4.dp))
+                    Row {
                         Button(onClick = {
                             onStartTest()
                         },
@@ -320,7 +323,14 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                                 enabled = mStopButtonEnabled.value) {
                             Text(text = "Stop")
                         }
+                        Button(onClick = {
+                            onShareResults()
+                        },
+                            enabled = mShareButtonEnabled.value) {
+                            Text(text = "Share")
+                        }
                     }
+                    Spacer(modifier = Modifier.padding(4.dp))
                     Text(text = mParam.value)
                     Spacer(modifier = Modifier.padding(4.dp))
                     Text(text = mStatus.value,
@@ -329,23 +339,23 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     WaveformDisplay(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp)
+                            .height(WAVEFORM_HEIGHT.dp)
                             .border(1.dp, Color.Gray)
                             .background(Color.LightGray)
                             .padding(horizontal = 4.dp, vertical = 4.dp),
                         yValues = mBins,
-                        yMax = mMaxGraphValue,
-                        yMin = mMinGraphValue)
-                    Row {
-                        Text(text = "Use logarithmic display",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.align(Alignment.CenterVertically))
-                        Checkbox(
-                            checked = mUseLogDisplay.value,
-                            onCheckedChange = { mUseLogDisplay.value = it }
-                        )
-                    }
+                        yMin = MIN_DECIBELS,
+                        yMax = 0.0f)
+                    SpectogramDisplay(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(WAVEFORM_HEIGHT.dp)
+                            .border(1.dp, Color.Gray)
+                            .background(Color.LightGray)
+                            .padding(horizontal = 4.dp, vertical = 4.dp),
+                        values = mSpectogram,
+                        min = MIN_DECIBELS,
+                        max = 0.0f)
                 }
             }
         }
@@ -358,10 +368,15 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private fun runTest() {
         mStartButtonEnabled.value = false
         mStopButtonEnabled.value = true
+        mShareButtonEnabled.value = false
         mSpinnersEnabled.value = false
 
+        mFile = createFileName()
+
         mAudioEncoderDecoderFramework = AudioEncoderDecoderFramework(mAudioCodec, mSampleRate,
-            CHANNEL_COUNT, mBitrate, mFlacCompressionLevel, AUDIO_FORMAT)
+            CHANNEL_COUNT, mBitrate, mFlacCompressionLevel, AUDIO_FORMAT, mPlaySineSweep.value,
+            mFile!!
+        )
         checkNotNull(mAudioEncoderDecoderFramework) {
             Toast.makeText(
                 this,
@@ -373,18 +388,19 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
             Toast.makeText(this, "Failed to init harmonic analyzer sink", Toast.LENGTH_LONG).show()
         }
 
-        mAverageCount = 0
-        mSumPeakAmplitude = 0.0
-        mSumTHD = 0.0
-        mSumTHDN = 0.0
-        mSumSNR = 0.0
-        mSumBins = null
+        mBins = null
+        mSpectogram = null
+        mStatus.value = ""
 
         mAudioEncoderDecoderFramework?.addListener(mListener)
 
         harmonicAnalyzerSink.mSampleRate = mSampleRate
         harmonicAnalyzerSink.mFftSize = FFT_SIZE
-        harmonicAnalyzerSink.mFundamentalBin = calculateBinFrequency().toInt()
+        if (mPlaySineSweep.value) {
+            harmonicAnalyzerSink.mFundamentalBin = 0
+        } else {
+            harmonicAnalyzerSink.mFundamentalBin = calculateBinFrequency().toInt()
+        }
 
         mParam.value = String.format("Sample Rate = %6d Hz\nFFT size = %d\nFundamental Bin = %d\n",
                 harmonicAnalyzerSink.mSampleRate,
@@ -397,9 +413,14 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private fun onStopTest() {
         mStartButtonEnabled.value = true
         mStopButtonEnabled.value = false
+        mShareButtonEnabled.value = true
         mSpinnersEnabled.value = true
 
         mAudioEncoderDecoderFramework?.stop()
+    }
+
+    private fun onShareResults() {
+        shareWaveFile(mFile!!)
     }
 
     private fun initSpinnerValues() {
@@ -420,58 +441,84 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
 
     private inner class MyHarmonicAnalyzerListener : HarmonicAnalyzerListener {
         override fun onMeasurement(analysisCount: Int, result: HarmonicAnalyzer.Result) {
-            mSumPeakAmplitude += result.peakAmplitude
-            mSumTHD += result.totalHarmonicDistortion
-            mSumTHDN += result.totalHarmonicDistortionPlusNoise
-            mSumSNR += result.signalNoiseRatioDB
-            if (mSumBins == null || mSumBins!!.size !=
-                    result.bins!!.size) {
-                mSumBins = result.bins
+            if (mPlaySineSweep.value) {
+                sineSweepOnMeasurement(analysisCount, result)
             } else {
-                for (bucket in 0 until (result.bins!!.size)) {
-                    mSumBins!![bucket] += result.bins!![bucket]
-                }
-            }
-            mAverageCount++
-            if (mAverageCount == AVERAGE_SIZE) {
-                val averagePeakAmplitude = mSumPeakAmplitude / AVERAGE_SIZE
-                val averagePeakDB = HarmonicAnalyzer.amplitudeToDecibels(averagePeakAmplitude)
-                val averageTHD = mSumTHD / AVERAGE_SIZE
-                val averageTHDN = mSumTHDN / AVERAGE_SIZE
-                val averageSNR = mSumSNR / AVERAGE_SIZE
-                mAverageCount = 0
-                mSumPeakAmplitude = 0.0
-                mSumTHD = 0.0
-                mSumTHDN = 0.0
-                mSumSNR = 0.0
-                mStatus.value = """
-                    analysis #%04d
-                    THD   = %6.4f%c
-                    THD+N = %6.4f%c
-                    SNR   = %6.2f dB
-                    nPeak  = %6.2f dB
-                """.trimIndent().format(
-                        analysisCount,
-                        averageTHD * 100.0, '%',
-                        averageTHDN * 100.0, '%',
-                        averageSNR,
-                        averagePeakDB)
-                mBins = FloatArray(mSumBins!!.size)
-                for (bucket in 0 until (mSumBins!!.size)) {
-                    var avgValue = mSumBins!![bucket] / AVERAGE_SIZE
-                    if (mUseLogDisplay.value) {
-                        mBins!![bucket] = amplitudeToDecibels(avgValue
-                            .toDouble()).toFloat()
-                        mMinGraphValue = MIN_DECIBELS
-                        mMaxGraphValue = 0F
-                    } else {
-                        mBins!![bucket] = avgValue
-                        mMinGraphValue = 0F
-                        mMaxGraphValue = 1F
-                    }
-                }
-                mSumBins = null
+                sineOnMeasurement(analysisCount, result)
             }
         }
+    }
+
+    private fun sineOnMeasurement(analysisCount: Int, result: HarmonicAnalyzer.Result) {
+        mStatus.value = """
+                analysis #%04d
+                THD   = %6.4f%c
+                THD+N = %6.4f%c
+                SNR   = %6.2f dB
+                nPeak  = %6.2f dB
+            """.trimIndent().format(
+            analysisCount,
+            result.totalHarmonicDistortion * 100.0, '%',
+            result.totalHarmonicDistortionPlusNoise * 100.0, '%',
+            result.signalNoiseRatioDB,
+            HarmonicAnalyzer.amplitudeToDecibels(result.peakAmplitude))
+        val bins = result.bins
+        mBins = FloatArray(bins!!.size)
+        for (bucket in 0 until (bins.size)) {
+            mBins!![bucket] = amplitudeToDecibels(bins[bucket]
+                .toDouble()).toFloat()
+        }
+    }
+
+    private fun sineSweepOnMeasurement(analysisCount: Int, result: HarmonicAnalyzer.Result) {
+        if (mSpectogram == null) {
+            mSpectogram = mutableListOf<FloatArray?>();
+        }
+        var bins = remapToLog(result.bins!!, WAVEFORM_HEIGHT)
+        for (i in 0 until (bins.size)) {
+            bins[i] = amplitudeToDecibels(bins[i].toDouble()).toFloat()
+        }
+        mStatus.value = """
+                    analysis #%04d
+                    nPeak  = %6.2f dB
+                """.trimIndent().format(
+            analysisCount,
+            amplitudeToDecibels(result.peakAmplitude)
+        )
+        mSpectogram!!.add(bins)
+        if (mSpectogram!!.size > SPECTOGRAM_WIDTH) {
+            mSpectogram!!.removeAt(0)
+        }
+    }
+
+    private fun getTimestampString(): String? {
+        val df: DateFormat = SimpleDateFormat("yyyyMMdd-HHmmss")
+        val now: Date = Calendar.getInstance().getTime()
+        return df.format(now)
+    }
+
+    private fun createFileName(): File {
+        // Get directory and filename
+        val dir = getExternalFilesDir(Environment.DIRECTORY_MUSIC)
+        return File(
+            dir,
+            "soundchecker" + "_" + getTimestampString() + ".wav"
+        )
+    }
+
+    fun shareWaveFile(file: File) {
+        // Share WAVE file via GMail, Drive or other method.
+        val sharingIntent = Intent(Intent.ACTION_SEND)
+        sharingIntent.type = "audio/wav"
+        val subjectText = file.name
+        sharingIntent.putExtra(Intent.EXTRA_SUBJECT, subjectText)
+        val uri = FileProvider.getUriForFile(
+            this,
+            this.applicationContext.packageName.toString() + ".provider",
+            file
+        )
+        sharingIntent.putExtra(Intent.EXTRA_STREAM, uri)
+        sharingIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        startActivity(Intent.createChooser(sharingIntent, "Share WAV using:"))
     }
 }

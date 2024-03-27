@@ -25,13 +25,16 @@ import kotlin.math.roundToInt
 import com.google.android.soundchecker.utils.AudioSink
 import com.google.android.soundchecker.utils.AudioSource
 import com.google.android.soundchecker.utils.AudioThread
+import com.google.android.soundchecker.utils.WaveFileWriter
 import com.google.android.soundchecker.utils.byteArrayToFloatArray
 import com.google.android.soundchecker.utils.bytesPerSample
 import com.google.android.soundchecker.utils.floatArrayToByteArray
 import com.google.android.soundchecker.utils.i16ByteArrayToFloatArray
+import java.io.File
+import java.io.FileOutputStream
 import java.util.Arrays
 
-class AudioEncoderDecoderHarmonicAnalyzerSink : AudioSink() {
+class AudioEncoderDecoderHarmonicAnalyzerSink(outputFile: File): AudioSink() {
     private var mAudioSource: AudioSource? = null
     private var mThread: AudioThread? = null
     private var mBuffer: ByteArray? = null
@@ -41,6 +44,7 @@ class AudioEncoderDecoderHarmonicAnalyzerSink : AudioSink() {
     var mFundamentalBin = calculateNearestBin(TARGET_FREQUENCY)
     private val mListeners = ArrayList<HarmonicAnalyzerListener>()
     private val mAnalyzer = HarmonicAnalyzer()
+    private val mFileOutputStream = FileOutputStream(outputFile)
 
     override fun setSource(source: AudioSource?) {
         mAudioSource = source
@@ -63,6 +67,12 @@ class AudioEncoderDecoderHarmonicAnalyzerSink : AudioSink() {
     }
 
     fun runAudioLoop() {
+        var outputBitsPerSample = 16
+        if (mPcmEncoding == AudioFormat.ENCODING_PCM_FLOAT) {
+            outputBitsPerSample = 24
+        }
+        val waveFileWriter = WaveFileWriter(mFileOutputStream, mSampleRate, mChannelCount,
+            outputBitsPerSample)
         var count = 0
         while (mThread?.isEnabled() == true) {
             val audioSource = mAudioSource!!
@@ -80,11 +90,14 @@ class AudioEncoderDecoderHarmonicAnalyzerSink : AudioSink() {
             } else {
                 Log.d(TAG, "unsupported pcmEncoding: " + mPcmEncoding)
             }
+            waveFileWriter.write(floatArray, 0, floatArray.size)
             //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
             // Analyze it
             val result = mAnalyzer.analyze(floatArray, mFftSize, mFundamentalBin)
             fireListeners(count++, result)
         }
+        mFileOutputStream.flush()
+        mFileOutputStream.close()
     }
 
     private fun fireListeners(count: Int, result: HarmonicAnalyzer.Result) {
@@ -101,7 +114,7 @@ class AudioEncoderDecoderHarmonicAnalyzerSink : AudioSink() {
         return (mSampleRate * bin / mFftSize).toDouble()
     }
 
-    private fun calculateNearestBin(frequency: Double): Int {
+    fun calculateNearestBin(frequency: Double): Int {
         return (mFftSize * frequency / mSampleRate).roundToInt()
     }
 
@@ -111,7 +124,7 @@ class AudioEncoderDecoderHarmonicAnalyzerSink : AudioSink() {
     }
 
     companion object {
-        private const val TAG = "HarmonicAnalyzerSink"
-        private const val TARGET_FREQUENCY = 1000.0
+        private const val TAG = "AudioEncoderDecoderHarmonicAnalyzerSink"
+        const val TARGET_FREQUENCY = 1000.0
     }
 }

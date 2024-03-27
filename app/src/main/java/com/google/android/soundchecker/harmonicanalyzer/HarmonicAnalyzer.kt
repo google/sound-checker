@@ -51,7 +51,7 @@ class HarmonicAnalyzer {
      *
      * @param buffer
      * @param numFrames must be a power of two
-     * @param signalBin
+     * @param signalBin if set to zero, only the peak amplitude and bins are valid
      * @return
      */
     fun analyze(buffer: FloatArray, numFrames: Int, signalBin: Int): Result {
@@ -83,41 +83,45 @@ class HarmonicAnalyzer {
         }
         FastFourierTransform.fft(numFrames, buffer, mImaginary!!)
 
-        // Measure over a few adjacent bins.
-        var signalMagSquared = 0.0f
-        for (i in 0 - mPeakMargin until (1 + mPeakMargin)) {
-            val bin = signalBin + i
-            signalMagSquared += magnitudeSquared(buffer[bin], mImaginary!![bin])
-        }
-        signalMagSquared = VERY_SMALL_NUMBER.coerceAtLeast(signalMagSquared)
-
-        // Calculate Total Harmonic Distortion (THD)
-        var totalHarmonicsMagSquared = 0.0f
-        val limit = numFrames / (2 * signalBin)
-        for (harmonicScaler in 2 until limit) {
-            for (i in (0 - mPeakMargin) until (1 + mPeakMargin)) {
-                val bin = (signalBin * harmonicScaler) + i
-                totalHarmonicsMagSquared += magnitudeSquared(buffer[bin], mImaginary!![bin])
+        if (signalBin != 0) {
+            // Measure over a few adjacent bins.
+            var signalMagSquared = 0.0f
+            for (i in 0 - mPeakMargin until (1 + mPeakMargin)) {
+                val bin = signalBin + i
+                signalMagSquared += magnitudeSquared(buffer[bin], mImaginary!![bin])
             }
-        }
+            signalMagSquared = VERY_SMALL_NUMBER.coerceAtLeast(signalMagSquared)
 
-        result.totalHarmonicDistortion = sqrt((totalHarmonicsMagSquared / signalMagSquared).toDouble())
+            // Calculate Total Harmonic Distortion (THD)
+            var totalHarmonicsMagSquared = 0.0f
+            val limit = numFrames / (2 * signalBin)
+            for (harmonicScaler in 2 until limit) {
+                for (i in (0 - mPeakMargin) until (1 + mPeakMargin)) {
+                    val bin = (signalBin * harmonicScaler) + i
+                    totalHarmonicsMagSquared += magnitudeSquared(buffer[bin], mImaginary!![bin])
+                }
+            }
 
-        // Calculate Total Harmonic Distortion plus Noise (THD+N)
-        var totalMagSquared = 0.0f
-        // Ignore 0th bin because there may be DC offset
-        // Consider weighting by ITU-R (CCIR) 468 curve or A-weighting.
-        for (i in 1 until (numFrames / 2)) {
-            totalMagSquared += magnitudeSquared(buffer[i], mImaginary!![i])
-        }
-        var noiseMagSquared = totalMagSquared - signalMagSquared
-        if (noiseMagSquared < VERY_SMALL_NUMBER) noiseMagSquared = VERY_SMALL_NUMBER
-        result.totalHarmonicDistortionPlusNoise =
+            result.totalHarmonicDistortion =
+                sqrt((totalHarmonicsMagSquared / signalMagSquared).toDouble())
+
+            // Calculate Total Harmonic Distortion plus Noise (THD+N)
+            var totalMagSquared = 0.0f
+            // Ignore 0th bin because there may be DC offset
+            // Consider weighting by ITU-R (CCIR) 468 curve or A-weighting.
+            for (i in 1 until (numFrames / 2)) {
+                totalMagSquared += magnitudeSquared(buffer[i], mImaginary!![i])
+            }
+            var noiseMagSquared = totalMagSquared - signalMagSquared
+            if (noiseMagSquared < VERY_SMALL_NUMBER) noiseMagSquared = VERY_SMALL_NUMBER
+            result.totalHarmonicDistortionPlusNoise =
                 sqrt((noiseMagSquared / signalMagSquared).toDouble())
 
-        // Calculate Signal To Noise Ratio in dB
-        val signalNoisePowerRatio = signalMagSquared / noiseMagSquared
-        result.signalNoiseRatioDB = powerToDecibels(signalNoisePowerRatio.toDouble())
+            // Calculate Signal To Noise Ratio in dB
+            val signalNoisePowerRatio = signalMagSquared / noiseMagSquared
+            result.signalNoiseRatioDB = powerToDecibels(signalNoisePowerRatio.toDouble())
+
+        }
 
         // Two pass algorithm to calculate normalized magnitude of each frequency bin.
         var peakMagnitude = VERY_SMALL_NUMBER
