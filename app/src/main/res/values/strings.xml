@@ -30,6 +30,7 @@
   <string name="unable_to_parse_selected_file">Unable to parse selected file</string>
   <string name="test_resonance">Test Resonance</string>
   <string name="test_harmonic_distortion">Test THD and SNR</string>
+  <string name="test_audio_encoder_decoder">Test MediaCodec</string>
   <string name="auto_select">Auto Select</string>
   <string name="missing_record_permission">Missing recording permission</string>
 </resources>

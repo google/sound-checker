@@ -45,7 +45,8 @@ class MainActivity : ComponentActivity() {
                 Pair(getString(R.string.mqa_player), MQAFilePlayerActivity::class.java),
                 Pair(getString(R.string.dsd_player), DSDFilePlayerActivity::class.java),
                 Pair(getString(R.string.test_resonance), ResonanceActivity::class.java),
-                Pair(getString(R.string.test_harmonic_distortion), HarmonicAnalyzerActivity::class.java)
+                Pair(getString(R.string.test_harmonic_distortion), HarmonicAnalyzerActivity::class.java),
+                Pair(getString(R.string.test_audio_encoder_decoder), AudioEncoderDecoderActivity::class.java)
         )
         setContent {
             Scaffold(
