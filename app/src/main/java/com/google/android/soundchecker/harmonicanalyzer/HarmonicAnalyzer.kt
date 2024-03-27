@@ -39,6 +39,7 @@ class HarmonicAnalyzer {
         var signalNoiseRatioDB = 0.0
         var peakAmplitude = 0.0
         var bins: FloatArray? = null
+        var buffer: FloatArray? = null
     }
 
     var peakMargin: Int
@@ -62,6 +63,8 @@ class HarmonicAnalyzer {
                             + numFrames
             )
         }
+
+        result.buffer = buffer.clone()
 
         // peak amplitude
         var peak = 0.0f

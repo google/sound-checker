@@ -38,6 +38,7 @@ class AudioEncoderDecoderFramework (codec: String, sampleRate: Int, channelCount
         mSineSource.mSampleRate = sampleRate
         if (usePitchSweep) {
             mSineSource.enableSineSweep()
+            mSineSource.getFrequencyPort().set(sampleRate / 50.0F)
             mSineSource.getFrequencyPort().mMinimum = sampleRate / 1000.0F
             mSineSource.getFrequencyPort().mMaximum = sampleRate / 2.3F // Close to Nyquist
         }

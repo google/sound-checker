@@ -69,7 +69,7 @@ fun WaveformDisplay(
                             start = Offset(x0, ymin),
                             end = Offset(x0, ymax),
                             color = Color.Black,
-                            strokeWidth = 1F)
+                            strokeWidth = 2F)
                         x0 = x1;
                         ymin = offsetY;
                         ymax = offsetY;

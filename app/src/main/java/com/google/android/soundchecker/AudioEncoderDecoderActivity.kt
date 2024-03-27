@@ -112,6 +112,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mStatus = mutableStateOf("")
     private var mBins: FloatArray? = null
     private var mSpectogram: MutableList<FloatArray?>? = null
+    private var mLastOutputBuffer: FloatArray? = null
 
     private var mSpinnersEnabled = mutableStateOf(true)
     private var mSampleRateText = mutableStateOf("")
@@ -341,6 +342,16 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                             .fillMaxWidth()
                             .height(WAVEFORM_HEIGHT.dp)
                             .border(1.dp, Color.Gray)
+                            .background(Color.Green)
+                            .padding(horizontal = 4.dp, vertical = 4.dp),
+                        yValues = mLastOutputBuffer,
+                        yMin = -1.0f,
+                        yMax = 1.0f)
+                    WaveformDisplay(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(WAVEFORM_HEIGHT.dp)
+                            .border(1.dp, Color.Gray)
                             .background(Color.LightGray)
                             .padding(horizontal = 4.dp, vertical = 4.dp),
                         yValues = mBins,
@@ -388,6 +399,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
             Toast.makeText(this, "Failed to init harmonic analyzer sink", Toast.LENGTH_LONG).show()
         }
 
+        mLastOutputBuffer = null
         mBins = null
         mSpectogram = null
         mStatus.value = ""
@@ -441,6 +453,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
 
     private inner class MyHarmonicAnalyzerListener : HarmonicAnalyzerListener {
         override fun onMeasurement(analysisCount: Int, result: HarmonicAnalyzer.Result) {
+            mLastOutputBuffer = result.buffer
             if (mPlaySineSweep.value) {
                 sineSweepOnMeasurement(analysisCount, result)
             } else {
