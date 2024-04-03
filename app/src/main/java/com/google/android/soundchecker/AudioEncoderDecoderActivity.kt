@@ -384,10 +384,22 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
 
         mFile = createFileName()
 
-        mAudioEncoderDecoderFramework = AudioEncoderDecoderFramework(mAudioCodec, mSampleRate,
-            CHANNEL_COUNT, mBitrate, mFlacCompressionLevel, AUDIO_FORMAT, mPlaySineSweep.value,
-            mFile!!
-        )
+        try {
+            mAudioEncoderDecoderFramework = AudioEncoderDecoderFramework(
+                mAudioCodec, mSampleRate,
+                CHANNEL_COUNT, mBitrate, mFlacCompressionLevel, AUDIO_FORMAT, mPlaySineSweep.value,
+                mFile!!
+            )
+        } catch (e: Exception) {
+            Toast.makeText(
+                this,
+                "Params not supported " + e,
+                Toast.LENGTH_LONG).show()
+            mStartButtonEnabled.value = true
+            mStopButtonEnabled.value = false
+            mSpinnersEnabled.value = true
+            return
+        }
         checkNotNull(mAudioEncoderDecoderFramework) {
             Toast.makeText(
                 this,
