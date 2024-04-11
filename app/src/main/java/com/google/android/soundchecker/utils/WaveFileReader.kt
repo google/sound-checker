@@ -195,6 +195,8 @@ class WaveFileReader(val stream: InputStream) {
             } else if (tag == WaveChunkHeader.RIFFID_DATA) {
                 dataChunk = WaveChunkHeader(tag)
                 dataChunk!!.read(stream)
+                Log.d(TAG, "chunkSize: " + dataChunk!!.chunkSize.toLong() +
+                        " stream.available(): " + stream.available())
                 // We are now positioned at the start of the audio data.
                 // stream.skip(dataChunk!!.chunkSize.toLong())
                 break
@@ -237,10 +239,8 @@ class WaveFileReader(val stream: InputStream) {
         var framesLeft = numFrames
         while (framesLeft > 0) {
             val framesThisRead = min(framesLeft, CONVERSION_BUFFER_FRAMES)
-            //Log.d(TAG, "framesThisRead: " + framesThisRead)
             val numFramesRead = stream.read(readBuf, 0, framesThisRead * numChannels *
                     sampleSize) / numChannels / sampleSize
-            //Log.d(TAG, "numFramesRead: " + numFramesRead)
 
             // Convert & Scale
             for (offset in 0 until numFramesRead * numChannels) {
@@ -248,14 +248,16 @@ class WaveFileReader(val stream: InputStream) {
                 if (sampleSize == 1) {
                     buf[bufOffset++] = (readBuf[offset].toUByte().toFloat() - sampleFullScale) *
                             inverseScale
-                    //Log.d(TAG, "UBYTE: " + readBuf[offset].toUByte())
                 } else {
                     var sample = 0
                     for (bit in 0 until sampleSize) {
-                        sample = sample or (readBuf[offset * sampleSize + bit].toInt() and
+                        val cur = (readBuf[offset * sampleSize + bit].toInt() and
                                 0xff) shl ((bit + 4 - sampleSize) * 8)
-                        //Log.d(TAG, "bit: " + ((bit + 4 - sampleSize) * 8) + " sample: " + sample
-                        //        + " data: " + readBuf[offset * sampleSize + bit].toInt())
+                        if (bit == 0) {
+                            sample = cur
+                        } else {
+                            sample = sample or cur
+                        }
                     }
                     // No need to scale for FLOAT
                     if (fmtChunk?.encodingId == WaveFmtChunkHeader.ENCODING_IEEE_FLOAT) {
@@ -273,9 +275,6 @@ class WaveFileReader(val stream: InputStream) {
                 break // none left
             }
         }
-
-
-        //Log.d(TAG, "framesLeft: " + framesLeft + " dataLen: " + stream.available())
 
         val totalFramesRead = numFrames - framesLeft
         if (framesLeft > 0) {
