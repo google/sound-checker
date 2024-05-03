@@ -19,43 +19,52 @@ package com.google.android.soundchecker.mediacodec
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerListener
 
 import com.google.android.soundchecker.utils.SineSource
+import com.google.android.soundchecker.utils.WaveFileReader
+import com.google.android.soundchecker.utils.WaveFileSource
 import java.io.File
 
-class AudioEncoderDecoderFramework (codec: String, sampleRate: Int, channelCount: Int,
-                                    bitRate: Int, flacCompressionLevel: Int,
-                                    pcmEncoding: Int, usePitchSweep: Boolean, outputFile:
-                                    File) {
+class AudioEncoderDecoderFramework (codec: String, codecFormat: String, sampleRate: Int,
+                                    channelCount: Int, bitRate: Int, flacCompressionLevel: Int,
+                                    pcmEncoding: Int, usePitchSweep: Boolean, outputFile: File,
+                                    reader: WaveFileReader?) {
     private var mSineSource = SineSource()
-    private var mAudioEncoderSource = AudioEncoderSource(codec, sampleRate, channelCount,
-        bitRate, flacCompressionLevel, pcmEncoding)
+    private var mWaveFileSource = WaveFileSource()
+    private var mAudioEncoderSource = AudioEncoderSource(codec, codecFormat, sampleRate,
+        channelCount, bitRate, flacCompressionLevel, pcmEncoding, "")
     private var mAudioDecoderSource = AudioDecoderSource()
-    var harmonicAnalyzerSink = AudioEncoderDecoderHarmonicAnalyzerSink(outputFile)
+    var harmonicAnalyzerSink = AudioEncoderDecoderSink(outputFile)
     private var mSineFrequency = 1000.0 // overwrite this with bin frequency
 
     init {
-        // Output
-        mSineSource.getAmplitudePort().set(0.5f)
-        mSineSource.mSampleRate = sampleRate
-        if (usePitchSweep) {
-            mSineSource.enableSineSweep()
-            mSineSource.getFrequencyPort().set(sampleRate / 50.0F)
-            mSineSource.getFrequencyPort().mMinimum = sampleRate / 1000.0F
-            mSineSource.getFrequencyPort().mMaximum = sampleRate / 2.3F // Close to Nyquist
+        val bin: Int = harmonicAnalyzerSink.calculateNearestBin(
+            AudioEncoderDecoderSink.TARGET_FREQUENCY)
+        if (reader != null) {
+            mWaveFileSource.waveFileReader = reader
+            mAudioEncoderSource.setSource(mWaveFileSource)
+        } else {
+            mSineSource.getAmplitudePort().set(0.5f)
+            mSineSource.mSampleRate = sampleRate
+            if (usePitchSweep) {
+                mSineSource.enableSineSweep()
+                mSineSource.getFrequencyPort().set(sampleRate / 50.0F)
+                mSineSource.getFrequencyPort().mMinimum = sampleRate / 1000.0F
+                mSineSource.getFrequencyPort().mMaximum = sampleRate / 2.3F // Close to Nyquist
+            } else {
+                mSineFrequency = harmonicAnalyzerSink.calculateBinFrequency(bin)
+                mSineSource.getFrequencyPort().set(mSineFrequency.toFloat())
+            }
+            mAudioEncoderSource.setSource(mSineSource)
         }
-        mAudioEncoderSource.setSource(mSineSource)
         mAudioDecoderSource.setSource(mAudioEncoderSource)
         mAudioEncoderSource.setDecoder(mAudioDecoderSource)
         harmonicAnalyzerSink.setSource(mAudioDecoderSource)
         harmonicAnalyzerSink.mSampleRate = sampleRate
         harmonicAnalyzerSink.mChannelCount = channelCount
-        harmonicAnalyzerSink.mFundamentalBin = harmonicAnalyzerSink.calculateNearestBin(
-                AudioEncoderDecoderHarmonicAnalyzerSink.TARGET_FREQUENCY)
+        harmonicAnalyzerSink.mFundamentalBin = bin
+        harmonicAnalyzerSink.mUseAnalyzer = (reader == null)
     }
 
     fun start() {
-        val bin: Int = harmonicAnalyzerSink.mFundamentalBin
-        mSineFrequency = harmonicAnalyzerSink.calculateBinFrequency(bin)
-        mSineSource.getFrequencyPort().set(mSineFrequency.toFloat())
         mAudioEncoderSource.start()
         val outputPcmEncoding = mAudioEncoderSource.getOutputPcmEncoding()
         //mAudioDecoderSource.start()

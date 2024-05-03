@@ -19,19 +19,18 @@ package com.google.android.soundchecker.mediacodec
 import android.media.AudioFormat
 import android.media.MediaCodec
 import android.media.MediaCodecList
+import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.util.Log
-
+import com.google.android.soundchecker.utils.AudioSource
 import java.util.Arrays
-
 import kotlin.math.min
 
-import com.google.android.soundchecker.utils.AudioSource
-import java.nio.charset.Charset
-import kotlin.math.max
 
-class AudioEncoderSource(val codec: String, sampleRate: Int, channelCount: Int,
-        val bitRate: Int, val flacCompressionLevel: Int, pcmEncoding: Int) : AudioSource() {
+class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate: Int,
+                         channelCount: Int, val bitRate: Int, val flacCompressionLevel: Int,
+                         pcmEncoding: Int, val uri: String) :
+    AudioSource() {
 
     companion object {
         private const val TAG = "AudioEncoderSource"
@@ -40,17 +39,17 @@ class AudioEncoderSource(val codec: String, sampleRate: Int, channelCount: Int,
         private const val TIMEOUT_MICROSECONDS: Long = 2000
     }
 
-    private var encoder: MediaCodec = MediaCodec.createEncoderByType(codec)
-    private val outputFormat: MediaFormat = MediaFormat.createAudioFormat(codec, sampleRate,
-        channelCount)
+    private var encoder: MediaCodec = MediaCodec.createByCodecName(codec)
+    private val outputFormat: MediaFormat = MediaFormat.createAudioFormat(codecFormat, sampleRate,
+            channelCount)
 
     private var audioSource: AudioSource? = null
     private var audioDecoderSource: AudioDecoderSource? = null
 
     init {
-        Log.i(TAG, "Creating AudioEncoderSource, codec=$codec, sampleRate=$sampleRate, " +
-                "bitRate=$bitRate")
-        if (codec == MediaFormat.MIMETYPE_AUDIO_FLAC) {
+        Log.i(TAG, "Creating AudioEncoderSource, codec=$codec, codecFormat=$codecFormat, " +
+                "sampleRate=$sampleRate, bitRate=$bitRate")
+        if (codecFormat == MediaFormat.MIMETYPE_AUDIO_FLAC) {
             outputFormat.setInteger(MediaFormat.KEY_FLAC_COMPRESSION_LEVEL, flacCompressionLevel)
         } else {
             outputFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
@@ -61,11 +60,7 @@ class AudioEncoderSource(val codec: String, sampleRate: Int, channelCount: Int,
         mEncoding = pcmEncoding
         mSampleRate = sampleRate
 
-        val mcl = MediaCodecList(MediaCodecList.ALL_CODECS)
-        Log.i(TAG, "outformat" + outputFormat)
-        val encoderName = mcl.findEncoderForFormat(outputFormat)
-        Log.i(TAG, "encodername" + encoderName)
-        encoder = MediaCodec.createByCodecName(encoderName)
+        encoder = MediaCodec.createByCodecName(codec)
     }
 
     fun setSource(source: AudioSource?) {
@@ -125,15 +120,21 @@ class AudioEncoderSource(val codec: String, sampleRate: Int, channelCount: Int,
                 val framesToProcess = min(inputBuffer.capacity() / getBytesPerFrame(),
                     FRAMES_TO_PROCESS)
                 val inputArray = ByteArray(getBytesPerFrame() * framesToProcess)
+                var framesProcessed = 0
                 if (mEncoding == AudioFormat.ENCODING_PCM_16BIT) {
-                    audioSource!!.pull(framesToProcess * getBytesPerFrame(), inputArray)
+                    framesProcessed = audioSource!!.pull(framesToProcess * getBytesPerFrame(),
+                            inputArray)
                 } else { // FLOAT
-                    audioSource!!.pull(inputArray, framesToProcess)
+                    framesProcessed = audioSource!!.pull(inputArray, framesToProcess)
                 }
                 //Log.d(TAG, "inputArraya: " + Arrays.toString(inputArray))
                 inputBuffer.put(inputArray)
                 inputBuffer.flip()
-                encoder.queueInputBuffer(inputIndex, 0, getBytesPerFrame() * framesToProcess, 0, 0)
+                var flags = 0
+                if (framesToProcess != framesProcessed) {
+                    flags = MediaCodec.BUFFER_FLAG_END_OF_STREAM
+                }
+                encoder.queueInputBuffer(inputIndex, 0, getBytesPerFrame() * framesToProcess, 0, flags)
                 //Log.d(TAG, " " + inputIndex + " " + getBytesPerFrame() * framesToProcess)
             }
 
@@ -153,6 +154,12 @@ class AudioEncoderSource(val codec: String, sampleRate: Int, channelCount: Int,
                 Log.d(TAG, "config buffer: " + Arrays.toString(arr))
                 encoder.releaseOutputBuffer(outputIndex, false)
                 continue
+            }
+
+            val isEndOfStream = bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
+            if (isEndOfStream) {
+                audioDecoderSource?.isEndOfStream = true
+                Log.d(TAG, "encoderIsEndOfStream: " + isEndOfStream)
             }
 
             if (outputIndex >= 0) {

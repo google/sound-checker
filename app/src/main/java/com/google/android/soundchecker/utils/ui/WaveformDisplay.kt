@@ -17,13 +17,18 @@
 package com.google.android.soundchecker.utils.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.max
 import kotlin.math.min
 
@@ -39,18 +44,30 @@ fun WaveformDisplay(
     modifier : Modifier,
     yValues: FloatArray?,
     yMin: Float = -1.0F,
-    yMax: Float = 1.0F
+    yMax: Float = 1.0F,
+    shouldZoom: Boolean = false
 ) {
     if (yValues == null || yValues.size < 1) {
         return;
     }
-
+    val scale = remember { mutableStateOf(1f) }
+    var boxModifier = modifier
+    if (shouldZoom) {
+        boxModifier = modifier.pointerInput(Unit) {
+            detectTransformGestures { centroid, pan, zoom, rotation ->
+                scale.value *= zoom
+            }
+        }
+    }
     Box(
-        modifier = modifier,
+        modifier = boxModifier.clipToBounds(),
         contentAlignment = Center
     ) {
         Canvas(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().graphicsLayer(
+                // 100% to 400% zoom limits
+                scaleX = maxOf(1.0f, minOf(5f, scale.value)),
+            ),
         ) {
             val offsetY = yMax / (yMax - yMin) * size.height;
             val scaleY = -1.0f / (yMax - yMin) * size.height;

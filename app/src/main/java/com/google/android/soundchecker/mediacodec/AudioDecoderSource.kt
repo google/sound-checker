@@ -45,6 +45,9 @@ class AudioDecoderSource() : AudioSource() {
 
     private var inputArray = ByteArray(MAX_BYTES_TO_PULL)
 
+    var isEndOfStream = false
+    var isDecodingComplete = false
+
     fun setSource(source: AudioSource?) {
         audioSource = source
     }
@@ -149,35 +152,46 @@ class AudioDecoderSource() : AudioSource() {
                 }
                 //Log.d(TAG, "1pointer: " + destinationBufferPointer + " size: " +
                 //        destinationBufferSize)
-                if (destinationBufferPointer >= destinationBufferSize) {
-                    return destinationBufferSize
+                if (isDecodingComplete || destinationBufferPointer >= destinationBufferSize) {
+                    return min(destinationBufferPointer, destinationBufferSize)
                 }
+            } else if (isDecodingComplete) {
+                return 0
             }
 
-            var isInitialDecode = false
-            var encodedSize = 0
-            if (decoder == null) {
-                encodedSize = audioSource!!.pull(MAX_BYTES_TO_PULL, inputArray)
-                isInitialDecode = true
-                //Thread.sleep(5_000)
-            }
+            if (!isEndOfStream) {
+                var isInitialDecode = false
+                var encodedSize = 0
+                if (decoder == null) {
+                    encodedSize = audioSource!!.pull(MAX_BYTES_TO_PULL, inputArray)
+                    isInitialDecode = true
+                    //Thread.sleep(5_000)
+                }
 
-            inputIndex = decoder!!.dequeueInputBuffer(TIMEOUT_MICROSECONDS)
-            if (inputIndex >= 0) {
-                val inputBuffer = decoder!!.getInputBuffer(inputIndex)
-                inputBuffer!!.clear()
-                if (!isInitialDecode) {
-                    if (inputBuffer.capacity() > inputArray.size) {
-                        inputArray = ByteArray(inputBuffer.capacity())
+                inputIndex = decoder!!.dequeueInputBuffer(TIMEOUT_MICROSECONDS)
+                if (inputIndex >= 0) {
+                    val inputBuffer = decoder!!.getInputBuffer(inputIndex)
+                    inputBuffer!!.clear()
+                    if (!isInitialDecode) {
+                        if (inputBuffer.capacity() > inputArray.size) {
+                            inputArray = ByteArray(inputBuffer.capacity())
+                        }
+                        encodedSize = audioSource!!.pull(inputBuffer.capacity(), inputArray)
                     }
-                    encodedSize = audioSource!!.pull(inputBuffer.capacity(), inputArray)
+                    //Log.d(TAG, "capacity: " + inputBuffer.capacity())
+                    //Log.d(TAG, "inputArray: " + Arrays.toString(inputArray))
+                    inputBuffer.put(inputArray)
+                    var flags = 0
+                    if (isEndOfStream) {
+                        flags = MediaCodec.BUFFER_FLAG_END_OF_STREAM
+                        Log.d(TAG, "decoderEndOfStream")
+                    }
+                    decoder!!.queueInputBuffer(
+                        inputIndex, 0, encodedSize,
+                        0, flags
+                    )
+                    //Log.d(TAG, "queued " + inputIndex + " " + encodedSize)
                 }
-                //Log.d(TAG, "capacity: " + inputBuffer.capacity())
-                //Log.d(TAG, "inputArray: " + Arrays.toString(inputArray))
-                inputBuffer.put(inputArray)
-                decoder!!.queueInputBuffer(inputIndex, 0, encodedSize,
-                    0, 0)
-                //Log.d(TAG, "queued " + inputIndex + " " + encodedSize)
             }
 
             val bufferInfo = MediaCodec.BufferInfo()
@@ -208,6 +222,11 @@ class AudioDecoderSource() : AudioSource() {
                 //Log.d(TAG, " " + bufferInfo.size)
                 //Log.d(TAG, "lastOutputBuffer: " + Arrays.toString(lastOutputBuffer))
 
+                isDecodingComplete = bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
+                if (isDecodingComplete) {
+                    Log.d(TAG, "decoding complete")
+                }
+
                 if (lastOutputBuffer != null) {
                     val lastOutputBufferDataSize = lastOutputBuffer!!.size - lastOutputBufferPointer
                     val amountToCopyFromLastOutputBuffer = min(lastOutputBufferDataSize, buffer.size - destinationBufferPointer)
@@ -217,10 +236,11 @@ class AudioDecoderSource() : AudioSource() {
                     lastOutputBufferPointer += amountToCopyFromLastOutputBuffer
                     //Log.d(TAG, "2pointer: " + destinationBufferPointer + " size: " +
                     //        destinationBufferSize)
-                    if (destinationBufferPointer >= destinationBufferSize) {
+
+                    if (isDecodingComplete || destinationBufferPointer >= destinationBufferSize) {
                         decoder!!.releaseOutputBuffer(outputIndex, false)
                         //Log.d(TAG, "test3")
-                        return destinationBufferSize
+                        return min(destinationBufferPointer, destinationBufferSize)
                     }
                 }
 

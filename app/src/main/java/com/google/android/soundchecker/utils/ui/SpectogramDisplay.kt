@@ -16,6 +16,7 @@
 
 package com.google.android.soundchecker.utils.ui
 
+import android.graphics.Color.HSVToColor
 import android.graphics.Color.rgb
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
@@ -58,11 +59,23 @@ fun SpectogramDisplay(
                     var normalizedColor = values[xIndex]!![yIndex]
                     normalizedColor = max(min(normalizedColor, max), min)
                     normalizedColor = (normalizedColor - min) / (max - min)
-                    val color = Color(rgb(normalizedColor, 0.0f, 0.0f))
+                    val hueBlue = 225
+                    val hueYellow = 45 + 360
+                    var hue = hueBlue + (hueYellow - hueBlue) * normalizedColor
+                    if (hue >= 360) {
+                        hue -= 360
+                    }
+                    val saturation = .75f
+                    val value = normalizedColor
+                    val hsv = FloatArray(3)
+                    hsv[0] = hue
+                    hsv[1] = saturation
+                    hsv[2] = value
+                    val color = Color(HSVToColor(hsv))
                     val xStart = xIndex * xScale
                     val xEnd = (xIndex + 1) * xScale + 1
-                    val yStart = yIndex * yScale
-                    val yEnd = (yIndex + 1) * yScale + 1
+                    val yStart = size.height - (yIndex + 1) * yScale
+                    val yEnd = size.height - yIndex * yScale + 1
 
                     drawRect(
                         color = color,

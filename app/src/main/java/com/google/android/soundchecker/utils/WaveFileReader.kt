@@ -161,6 +161,11 @@ class WaveFileReader(val stream: InputStream) {
     }
 
     fun getNumSampleFrames(): Int {
+        // If the file was streaming, the data chunk size is INT_MAX.
+        // Use stream.available() instead.
+        if (dataChunk?.chunkSize?.toInt() == Int.MAX_VALUE) {
+            return stream.available() / (getBitsPerSample() / 8) / getNumChannels()
+        }
         return (dataChunk?.chunkSize?.toInt() ?: 0) / (getBitsPerSample() / 8) / getNumChannels()
     }
 
@@ -241,6 +246,7 @@ class WaveFileReader(val stream: InputStream) {
             val framesThisRead = min(framesLeft, CONVERSION_BUFFER_FRAMES)
             val numFramesRead = stream.read(readBuf, 0, framesThisRead * numChannels *
                     sampleSize) / numChannels / sampleSize
+            //Log.d(TAG, "numFramesRead: " + numFramesRead)
 
             // Convert & Scale
             for (offset in 0 until numFramesRead * numChannels) {
@@ -269,7 +275,7 @@ class WaveFileReader(val stream: InputStream) {
                 }
             }
 
-            framesLeft -= framesThisRead
+            framesLeft -= numFramesRead
 
             if (numFramesRead < framesThisRead) {
                 break // none left
@@ -280,6 +286,9 @@ class WaveFileReader(val stream: InputStream) {
         if (framesLeft > 0) {
             Arrays.fill(buf, totalFramesRead * numChannels, numFrames * numChannels, 0F)
         }
+
+        //Log.d(TAG, "stream.available(): " + stream.available())
+        //Log.d(TAG, "totalFramesRead: " + totalFramesRead)
 
         return totalFramesRead
     }

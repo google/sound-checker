@@ -40,6 +40,7 @@ class HarmonicAnalyzer {
         var peakAmplitude = 0.0
         var bins: FloatArray? = null
         var buffer: FloatArray? = null
+        var endOfStream = false
     }
 
     var peakMargin: Int

@@ -33,7 +33,7 @@ class SineSource : AudioSource() {
 
     companion object {
         private const val TAG = "SineSource"
-        private const val FREQUENCY_INCREMENT_AMOUNT = 1.001f;
+        private const val FREQUENCY_INCREMENT_AMOUNT = 1.0001f;
         private const val INVERSE_FREQUENCY_INCREMENT_AMOUNT  = 1 / FREQUENCY_INCREMENT_AMOUNT;
     }
 

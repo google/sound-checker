@@ -28,13 +28,11 @@ import com.google.android.soundchecker.utils.AudioThread
 import com.google.android.soundchecker.utils.WaveFileWriter
 import com.google.android.soundchecker.utils.byteArrayToFloatArray
 import com.google.android.soundchecker.utils.bytesPerSample
-import com.google.android.soundchecker.utils.floatArrayToByteArray
 import com.google.android.soundchecker.utils.i16ByteArrayToFloatArray
 import java.io.File
 import java.io.FileOutputStream
-import java.util.Arrays
 
-class AudioEncoderDecoderHarmonicAnalyzerSink(outputFile: File): AudioSink() {
+class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
     private var mAudioSource: AudioSource? = null
     private var mThread: AudioThread? = null
     private var mBuffer: ByteArray? = null
@@ -42,6 +40,7 @@ class AudioEncoderDecoderHarmonicAnalyzerSink(outputFile: File): AudioSink() {
 
     var mFftSize = 1024 // must be power of 2
     var mFundamentalBin = calculateNearestBin(TARGET_FREQUENCY)
+    var mUseAnalyzer = false
     private val mListeners = ArrayList<HarmonicAnalyzerListener>()
     private val mAnalyzer = HarmonicAnalyzer()
     private val mFileOutputStream = FileOutputStream(outputFile)
@@ -67,7 +66,7 @@ class AudioEncoderDecoderHarmonicAnalyzerSink(outputFile: File): AudioSink() {
     }
 
     fun runAudioLoop() {
-        var outputBitsPerSample = 16
+        var outputBitsPerSample = 32
         if (mPcmEncoding == AudioFormat.ENCODING_PCM_FLOAT) {
             outputBitsPerSample = 24
         }
@@ -78,7 +77,7 @@ class AudioEncoderDecoderHarmonicAnalyzerSink(outputFile: File): AudioSink() {
             val audioSource = mAudioSource!!
             val buffer = mBuffer!!
             // pull audio from source
-            audioSource.pull(buffer.size, buffer)
+            val outputSize = audioSource.pull(buffer.size, buffer)
             //Log.d(TAG, "bufferSize: " + buffer.size)
             //Log.d(TAG, "buffer: " + Arrays.toString(buffer))
             val floatArray = FloatArray(mFftSize)
@@ -90,10 +89,20 @@ class AudioEncoderDecoderHarmonicAnalyzerSink(outputFile: File): AudioSink() {
             } else {
                 Log.d(TAG, "unsupported pcmEncoding: " + mPcmEncoding)
             }
-            waveFileWriter.write(floatArray, 0, floatArray.size)
+            waveFileWriter.write(floatArray, 0, outputSize / mPcmEncoding.bytesPerSample())
             //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
+            Log.d(TAG, "fundamental bin: " + mFundamentalBin)
+            Log.d(TAG, "mUseAnalyzer: " + mUseAnalyzer)
+            Log.d(TAG, "outputSize: " + outputSize)
+            Log.d(TAG, "buffer.size: " + buffer.size)
             // Analyze it
-            val result = mAnalyzer.analyze(floatArray, mFftSize, mFundamentalBin)
+            var result : HarmonicAnalyzer.Result = HarmonicAnalyzer.Result()
+            if (mUseAnalyzer) {
+                result = mAnalyzer.analyze(floatArray, mFftSize, mFundamentalBin)
+            } else {
+                result.buffer = floatArray
+                result.endOfStream = (outputSize != buffer.size)
+            }
             fireListeners(count++, result)
         }
         mFileOutputStream.flush()
@@ -124,7 +133,7 @@ class AudioEncoderDecoderHarmonicAnalyzerSink(outputFile: File): AudioSink() {
     }
 
     companion object {
-        private const val TAG = "AudioEncoderDecoderHarmonicAnalyzerSink"
+        private const val TAG = "AudioEncoderDecoderSink"
         const val TARGET_FREQUENCY = 1000.0
     }
 }
