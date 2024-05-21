@@ -36,6 +36,7 @@ class AudioEncoderDecoderFramework (codec: String, codecFormat: String, sampleRa
     private var mSineFrequency = 1000.0 // overwrite this with bin frequency
 
     init {
+        harmonicAnalyzerSink.mSampleRate = sampleRate
         val bin: Int = harmonicAnalyzerSink.calculateNearestBin(
             AudioEncoderDecoderSink.TARGET_FREQUENCY)
         if (reader != null) {
@@ -58,7 +59,6 @@ class AudioEncoderDecoderFramework (codec: String, codecFormat: String, sampleRa
         mAudioDecoderSource.setSource(mAudioEncoderSource)
         mAudioEncoderSource.setDecoder(mAudioDecoderSource)
         harmonicAnalyzerSink.setSource(mAudioDecoderSource)
-        harmonicAnalyzerSink.mSampleRate = sampleRate
         harmonicAnalyzerSink.mChannelCount = channelCount
         harmonicAnalyzerSink.mFundamentalBin = bin
         harmonicAnalyzerSink.mUseAnalyzer = (reader == null)
