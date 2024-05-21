@@ -87,6 +87,7 @@ import java.text.SimpleDateFormat
 import java.util.Arrays
 import java.util.Calendar
 import java.util.Date
+import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
 
@@ -565,13 +566,17 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     }
 
     private fun onPlayResult() {
-        playAudioStream(mOutputFile!!.inputStream())
+        thread {
+            playAudioStream(mOutputFile!!.inputStream())
+        }
     }
 
     private fun playInputFile() {
-        val inputStream = contentResolver.openInputStream(mInputFile!!)
-        playAudioStream(inputStream!!)
-        inputStream.close()
+        thread {
+            val inputStream = contentResolver.openInputStream(mInputFile!!)
+            playAudioStream(inputStream!!)
+            inputStream.close()
+        }
     }
 
     private fun displayInputFileStatus() {
