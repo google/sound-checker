@@ -104,7 +104,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         private val WAVEFORM_HEIGHT = 200
         private val SPECTOGRAM_WIDTH = 300
 
-        private const val MIN_DECIBELS = -160F
+        private const val MIN_DECIBELS = -80F
     }
 
     private var mStartButtonEnabled = mutableStateOf(true)
