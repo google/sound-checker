@@ -25,10 +25,6 @@ class WaveFileSource : AudioSource() {
 
     public var waveFileReader : WaveFileReader? = null
 
-    companion object {
-        private const val TAG = "WaveFileSource"
-    }
-
     override fun pull(buffer: ByteArray, numFrames: Int): Int {
         val floatArray = FloatArray(numFrames * getChannelCount())
         val framesRead = pull(floatArray, numFrames)
@@ -53,5 +49,9 @@ class WaveFileSource : AudioSource() {
         //Log.d(TAG, "numFrames: " + numFrames)
         //Log.d(TAG, "framesRead: " + framesRead)
         return framesRead
+    }
+
+    companion object {
+        private const val TAG = "WaveFileSource"
     }
 }

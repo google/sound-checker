@@ -92,22 +92,6 @@ import kotlin.math.roundToInt
 
 
 class AudioEncoderDecoderActivity : ComponentActivity() {
-    companion object {
-        const val TAG = "AudioEncoderDecoderActivity"
-
-        private const val FFT_SIZE = 1024
-        private val AUDIO_FORMAT_FLAC = MediaFormat.MIMETYPE_AUDIO_FLAC
-        private val DEFAULT_SAMPLE_RATES = listOf(8000, 16000, 32000, 44100, 48000, 96000, 192000)
-        private val CHANNEL_COUNT = 1
-        private val DEFAULT_BITRATES = listOf(6000, 10000, 20000, 64000, 128000)
-        private val FLAC_COMPRESSION_LEVELS = (0..8).toList()
-        private val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_FLOAT
-        private val WAVEFORM_HEIGHT = 200
-        private val SPECTOGRAM_WIDTH = 300
-
-        private const val MIN_DECIBELS = -80F
-    }
-
     private var mStartButtonEnabled = mutableStateOf(true)
     private var mStopButtonEnabled = mutableStateOf(false)
     private var mShareButtonEnabled = mutableStateOf(false)
@@ -989,5 +973,21 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         }
         report.append("Is Encoder: ${mediaCodecInfo.isEncoder}")
         mCodecStatus.value = report.toString()
+    }
+
+    companion object {
+        const val TAG = "AudioEncoderDecoderActivity"
+
+        private const val FFT_SIZE = 1024
+        private val AUDIO_FORMAT_FLAC = MediaFormat.MIMETYPE_AUDIO_FLAC
+        private val DEFAULT_SAMPLE_RATES = listOf(8000, 16000, 32000, 44100, 48000, 96000, 192000)
+        private val CHANNEL_COUNT = 1
+        private val DEFAULT_BITRATES = listOf(6000, 10000, 20000, 64000, 128000)
+        private val FLAC_COMPRESSION_LEVELS = (0..8).toList()
+        private val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_FLOAT
+        private val WAVEFORM_HEIGHT = 200
+        private val SPECTOGRAM_WIDTH = 300
+
+        private const val MIN_DECIBELS = -80F
     }
 }

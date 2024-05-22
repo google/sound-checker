@@ -29,16 +29,7 @@ import kotlin.math.min
 
 class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate: Int,
                          channelCount: Int, val bitRate: Int, val flacCompressionLevel: Int,
-                         pcmEncoding: Int, val uri: String) :
-    AudioSource() {
-
-    companion object {
-        private const val TAG = "AudioEncoderSource"
-
-        private const val FRAMES_TO_PROCESS = 16
-        private const val TIMEOUT_MICROSECONDS: Long = 2000
-    }
-
+                         pcmEncoding: Int, val uri: String) : AudioSource() {
     private var encoder: MediaCodec = MediaCodec.createByCodecName(codec)
     private val outputFormat: MediaFormat = MediaFormat.createAudioFormat(codecFormat, sampleRate,
             channelCount)
@@ -175,5 +166,12 @@ class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate:
                 return bufferInfo.size
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "AudioEncoderSource"
+
+        private const val FRAMES_TO_PROCESS = 16
+        private const val TIMEOUT_MICROSECONDS: Long = 2000
     }
 }

@@ -20,14 +20,6 @@ import java.io.OutputStream
 
 class WaveFileWriter(val outputStream: OutputStream, val frameRate: Int, val samplesPerFrame: Int,
                      val bitsPerSample: Int) {
-    companion object {
-        private const val TAG = "WaveFileWriter"
-
-        private const val PCM24_MIN = -(1 shl 23)
-        private const val PCM24_MAX = (1 shl 23) - 1
-        private const val WAVE_FORMAT_PCM = 1
-    }
-
     private var mBytesWritten = 0
     private var mHeaderWritten = false
 
@@ -153,5 +145,13 @@ class WaveFileWriter(val outputStream: OutputStream, val frameRate: Int, val sam
         writeByte('A')
         writeByte('V')
         writeByte('E')
+    }
+
+    companion object {
+        private const val TAG = "WaveFileWriter"
+
+        private const val PCM24_MIN = -(1 shl 23)
+        private const val PCM24_MAX = (1 shl 23) - 1
+        private const val WAVE_FORMAT_PCM = 1
     }
 }
