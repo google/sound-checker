@@ -32,10 +32,10 @@ import kotlin.math.min
 
 @Composable
 fun SpectogramDisplay(
-    modifier : Modifier,
     values: MutableList<FloatArray?>?,
     min: Float = 0.0F,
-    max: Float = 1.0F
+    max: Float = 1.0F,
+    modifier : Modifier
 ) {
     if (values.isNullOrEmpty()) {
         return;
@@ -56,21 +56,10 @@ fun SpectogramDisplay(
 
             for (xIndex in 0 until numXValues) {
                 for (yIndex in 0 until numYValues) {
-                    var normalizedColor = values[xIndex]!![yIndex]
-                    normalizedColor = max(min(normalizedColor, max), min)
-                    normalizedColor = (normalizedColor - min) / (max - min)
-                    val hueBlue = 225
-                    val hueYellow = 45 + 360
-                    var hue = hueBlue + (hueYellow - hueBlue) * normalizedColor
-                    if (hue >= 360) {
-                        hue -= 360
-                    }
-                    val saturation = .75f
-                    val value = normalizedColor
-                    val hsv = FloatArray(3)
-                    hsv[0] = hue
-                    hsv[1] = saturation
-                    hsv[2] = value
+                    var normalizedValue = values[xIndex]!![yIndex]
+                    normalizedValue = max(min(normalizedValue, max), min)
+                    normalizedValue = (normalizedValue - min) / (max - min)
+                    val hsv = hsvFromValue(normalizedValue)
                     val color = Color(HSVToColor(hsv))
                     val xStart = xIndex * xScale
                     val xEnd = (xIndex + 1) * xScale + 1
@@ -86,4 +75,21 @@ fun SpectogramDisplay(
             }
         }
     }
+}
+
+// Creates a color in the hsv(hue, saturation, and value) color space from a value from 0 to 1
+// This color goes from a black -> purple -> red -> yellow
+fun hsvFromValue(value: Float) : FloatArray {
+    val hueBlue = 225
+    val hueYellow = 45 + 360
+    var hue = hueBlue + (hueYellow - hueBlue) * value
+    if (hue >= 360) {
+        hue -= 360
+    }
+    val saturation = .75f
+    val hsv = FloatArray(3)
+    hsv[0] = hue
+    hsv[1] = saturation
+    hsv[2] = value
+    return hsv
 }

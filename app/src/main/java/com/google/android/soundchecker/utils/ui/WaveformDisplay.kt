@@ -41,11 +41,11 @@ import kotlin.math.min
  */
 @Composable
 fun WaveformDisplay(
-    modifier : Modifier,
     yValues: FloatArray?,
     yMin: Float = -1.0F,
     yMax: Float = 1.0F,
-    shouldZoom: Boolean = false
+    shouldZoom: Boolean = false,
+    modifier: Modifier = Modifier
 ) {
     if (yValues == null || yValues.size < 1) {
         return;
