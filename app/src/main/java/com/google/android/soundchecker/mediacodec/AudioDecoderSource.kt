@@ -28,14 +28,6 @@ import java.util.Arrays
 import kotlin.math.min
 
 class AudioDecoderSource() : AudioSource() {
-
-    companion object {
-        private const val TAG = "AudioDecoderSource"
-
-        private const val MAX_BYTES_TO_PULL = 4000
-        private const val TIMEOUT_MICROSECONDS: Long = 2000
-    }
-
     private var decoder: MediaCodec? = null
     private var inputFormat: MediaFormat? = null
 
@@ -248,5 +240,12 @@ class AudioDecoderSource() : AudioSource() {
                 outputIndex = decoder!!.dequeueOutputBuffer(bufferInfo, TIMEOUT_MICROSECONDS)
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "AudioDecoderSource"
+
+        private const val MAX_BYTES_TO_PULL = 4000
+        private const val TIMEOUT_MICROSECONDS: Long = 2000
     }
 }
