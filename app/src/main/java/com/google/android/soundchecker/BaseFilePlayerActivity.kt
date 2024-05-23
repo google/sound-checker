@@ -140,9 +140,11 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
                 .setWillPauseWhenDucked(false)
                 .setOnAudioFocusChangeListener(this, mHandler)
                 .build()
+        mAudioManager.requestAudioFocus(mFocusRequest)
     }
 
     override fun onDestroy() {
+        mAudioManager.abandonAudioFocusRequest(mFocusRequest)
         mMsgHandlerThread.quitSafely()
         super.onDestroy()
     }
@@ -163,7 +165,6 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
     }
 
     open fun startPlayback() {
-        mAudioManager.requestAudioFocus(mFocusRequest)
         mIsPlaying = true
         mPlaybackButtonText.value = getString(R.string.stop)
     }
@@ -171,7 +172,6 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
     open fun stopPlayback() {
         mIsPlaying = false
         mPlaybackButtonText.value = getString(R.string.start)
-        mAudioManager.abandonAudioFocusRequest(mFocusRequest)
     }
 
     private fun getSelectedFileName(): String {
@@ -192,6 +192,10 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
 
     private fun onPlaybackButtonClicked() {
         sendMsg(ON_PLAYBACK_STATE_CHANGED, 0, 0, null, 0)
+    }
+
+    private fun sendStartPlaybackMsg(delay: Int) {
+        sendMsg(START_PLAYBACK, 0, 0, null, 0)
     }
 
     protected fun sendStopPlaybackMsg(delay: Int) {
@@ -248,8 +252,13 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
 
     override fun onAudioFocusChange(focusChanged: Int) {
         when (focusChanged) {
-            AudioManager.AUDIOFOCUS_LOSS -> {
+            AudioManager.AUDIOFOCUS_LOSS,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 sendStopPlaybackMsg(0)
+            }
+
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                sendStartPlaybackMsg(0)
             }
 
             else -> {
