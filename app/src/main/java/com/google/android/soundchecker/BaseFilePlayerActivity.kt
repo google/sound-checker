@@ -195,7 +195,7 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
     }
 
     private fun sendStartPlaybackMsg(delay: Int) {
-        sendMsg(START_PLAYBACK, 0, 0, null, 0)
+        sendMsg(START_PLAYBACK, 0, 0, null, delay)
     }
 
     protected fun sendStopPlaybackMsg(delay: Int) {
