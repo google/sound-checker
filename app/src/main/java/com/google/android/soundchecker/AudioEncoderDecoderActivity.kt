@@ -439,27 +439,31 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     }
                     Spacer(modifier = Modifier.padding(4.dp))
                     Row {
-                        Button(onClick = {
-                            onStartTest()
-                        },
-                                enabled = mStartButtonEnabled.value) {
+                        Button(
+                            onClick = {
+                                onStartTest()
+                            },
+                            enabled = mStartButtonEnabled.value) {
                             Text(text = "Start")
                         }
-                        Button(onClick = {
-                            onStopTest()
-                        },
-                                enabled = mStopButtonEnabled.value) {
+                        Button(
+                            onClick = {
+                                onStopTest()
+                            },
+                            enabled = mStopButtonEnabled.value) {
                             Text(text = "Stop")
                         }
-                        Button(onClick = {
-                            onShareOutputFile()
-                        },
+                        Button(
+                            onClick = {
+                                onShareOutputFile()
+                            },
                             enabled = mShareButtonEnabled.value) {
                             Text(text = "Share")
                         }
-                        Button(onClick = {
-                            onPlayResult()
-                        },
+                        Button(
+                            onClick = {
+                                onPlayResult()
+                            },
                             enabled = mPlayButtonEnabled.value) {
                             Text(text = "Play")
                         }
