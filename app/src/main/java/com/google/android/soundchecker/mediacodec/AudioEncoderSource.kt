@@ -21,6 +21,7 @@ import android.media.MediaCodec
 import android.media.MediaCodecList
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import android.media.MediaMuxer
 import android.util.Log
 import com.google.android.soundchecker.utils.AudioSource
 import java.util.Arrays
@@ -29,13 +30,14 @@ import kotlin.math.min
 
 class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate: Int,
                          channelCount: Int, val bitRate: Int, val flacCompressionLevel: Int,
-                         pcmEncoding: Int, val uri: String) : AudioSource() {
+                         pcmEncoding: Int, val encodedDataMediaMuxer: MediaMuxer?) : AudioSource() {
     private var encoder: MediaCodec = MediaCodec.createByCodecName(codec)
     private val outputFormat: MediaFormat = MediaFormat.createAudioFormat(codecFormat, sampleRate,
             channelCount)
 
     private var audioSource: AudioSource? = null
     private var audioDecoderSource: AudioDecoderSource? = null
+    private var audioTrackIndex = -1
 
     init {
         Log.i(TAG, "Creating AudioEncoderSource, codec=$codec, codecFormat=$codecFormat, " +
@@ -65,6 +67,10 @@ class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate:
     fun start() {
         encoder.configure(outputFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
         encoder.start()
+        if (encodedDataMediaMuxer != null) {
+            audioTrackIndex = encodedDataMediaMuxer.addTrack(encoder.outputFormat)
+            encodedDataMediaMuxer.start()
+        }
 
         Log.i(TAG, "Outputformat" + encoder.outputFormat)
         Log.i(TAG, "Inputformat" + encoder.inputFormat)
@@ -82,6 +88,8 @@ class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate:
     fun stop() {
         encoder.stop()
         encoder.release()
+        encodedDataMediaMuxer?.stop()
+        encodedDataMediaMuxer?.release()
     }
 
     fun getOutputPcmEncoding() : Int {
@@ -141,6 +149,7 @@ class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate:
             if (isConfigFrame) {
                 val configBuffer = encoder.getOutputBuffer(outputIndex)
                 val arr = ByteArray(bufferInfo.size)
+                encodedDataMediaMuxer?.writeSampleData(audioTrackIndex, configBuffer!!, bufferInfo)
                 configBuffer!!.get(arr)
                 Log.d(TAG, "config buffer: " + Arrays.toString(arr))
                 encoder.releaseOutputBuffer(outputIndex, false)
@@ -159,6 +168,7 @@ class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate:
                 //Log.d(TAG, "size: " + bufferInfo.size)
                 //Log.d(TAG, "numBytes: " + numBytes)
                 //Log.d(TAG, "size2: " + buffer.size)
+                encodedDataMediaMuxer?.writeSampleData(audioTrackIndex, outputBuffer!!, bufferInfo)
                 outputBuffer!!.get(buffer, 0, min(numBytes, bufferInfo.size))
                 //Log.d(TAG, "buffer: " + Arrays.toString(buffer))
 

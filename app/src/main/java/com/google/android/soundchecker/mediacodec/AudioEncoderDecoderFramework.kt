@@ -16,6 +16,7 @@
 
 package com.google.android.soundchecker.mediacodec
 
+import android.media.MediaMuxer
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerListener
 
 import com.google.android.soundchecker.utils.SineSource
@@ -26,11 +27,11 @@ import java.io.File
 class AudioEncoderDecoderFramework (codec: String, codecFormat: String, sampleRate: Int,
                                     channelCount: Int, bitRate: Int, flacCompressionLevel: Int,
                                     pcmEncoding: Int, usePitchSweep: Boolean, outputFile: File,
-                                    reader: WaveFileReader?) {
+                                    reader: WaveFileReader?, encodedDataMediaMuxer: MediaMuxer?) {
     private var mSineSource = SineSource()
     private var mWaveFileSource = WaveFileSource()
     private var mAudioEncoderSource = AudioEncoderSource(codec, codecFormat, sampleRate,
-        channelCount, bitRate, flacCompressionLevel, pcmEncoding, "")
+        channelCount, bitRate, flacCompressionLevel, pcmEncoding, encodedDataMediaMuxer)
     private var mAudioDecoderSource = AudioDecoderSource()
     var harmonicAnalyzerSink = AudioEncoderDecoderSink(outputFile)
     private var mSineFrequency = 1000.0 // overwrite this with bin frequency

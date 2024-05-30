@@ -25,6 +25,7 @@ import android.media.AudioTrack.WRITE_BLOCKING
 import android.media.MediaCodecInfo
 import android.media.MediaCodecList
 import android.media.MediaFormat
+import android.media.MediaMuxer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -80,6 +81,7 @@ import com.google.android.soundchecker.utils.remapToLog
 import com.google.android.soundchecker.utils.ui.SpectogramDisplay
 import com.google.android.soundchecker.utils.ui.WaveformDisplay
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.text.DateFormat
@@ -126,6 +128,9 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mAvailableBitRates: MutableList<Int>? = null
 
     private var mOutputFile: File? = null
+    private var mEncodedFile: File? = null
+    private var mEncodedFileOutputStream: FileOutputStream? = null
+    private var mEncodedFileType: String = ""
 
     private var mInputFile: Uri? = null
     private var mInputFileMsg = mutableStateOf("")
@@ -419,6 +424,19 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                             )
                         }
                     }
+                    if (mEncodedFile != null) {
+                        Spacer(modifier = Modifier.padding(4.dp))
+                        Row {
+                            Button(
+                                onClick = {
+                                    onShareEncodedData()
+                                },
+                                enabled = mShareButtonEnabled.value
+                            ) {
+                                Text(text = "Share Encoded Data")
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.padding(4.dp))
                     Row {
                         Button(onClick = {
@@ -434,7 +452,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                             Text(text = "Stop")
                         }
                         Button(onClick = {
-                            onShareResults()
+                            onShareOutputFile()
                         },
                             enabled = mShareButtonEnabled.value) {
                             Text(text = "Share")
@@ -592,7 +610,21 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         mPlayButtonEnabled.value = false
         mSpinnersEnabled.value = false
 
-        mOutputFile = createFileName()
+        val timestamp = getTimestampString()
+        mOutputFile = createFile(timestamp, "wav")
+        var encodedFormat = AUDIO_FORMAT_TO_MEDIA_MUXER_OUTPUT_FORMAT.get(mOutputFormatText.value)
+        var mediaMuxer: MediaMuxer? = null
+        if (encodedFormat != null) {
+            val encodedFileExtension = MEDIA_MUXER_OUTPUT_FORMAT_TO_EXTENSION.get(encodedFormat)
+            mEncodedFile = createFile(timestamp, encodedFileExtension!!)
+            mEncodedFileType = MEDIA_MUXER_OUTPUT_FORMAT_TO_STRING[encodedFormat].toString()
+            mEncodedFileOutputStream = FileOutputStream(mEncodedFile)
+            mediaMuxer = MediaMuxer(mEncodedFileOutputStream!!.fd, encodedFormat)
+        } else {
+            mEncodedFile = null
+            mEncodedFileType = ""
+            mEncodedFileOutputStream = null
+        }
 
         try {
             if (mInputFile == null) {
@@ -606,7 +638,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     AUDIO_FORMAT,
                     mPlaySineSweep.value,
                     mOutputFile!!,
-                    null
+                    null,
+                    mediaMuxer
                 )
             } else {
                 mInputFileStream?.close()
@@ -623,7 +656,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     AUDIO_FORMAT,
                     mPlaySineSweep.value,
                     mOutputFile!!,
-                    reader
+                    reader,
+                    mediaMuxer
                 )
             }
         } catch (e: Exception) {
@@ -680,11 +714,16 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         mSpinnersEnabled.value = true
 
         mInputFileStream?.close()
+        mEncodedFileOutputStream?.close()
         mAudioEncoderDecoderFramework?.stop()
     }
 
-    private fun onShareResults() {
+    private fun onShareOutputFile() {
         shareWaveFile(mOutputFile!!)
+    }
+
+    private fun onShareEncodedData() {
+        shareFile(mEncodedFile!!, mEncodedFileType)
     }
 
     private inner class MyHarmonicAnalyzerListener : HarmonicAnalyzerListener {
@@ -759,19 +798,23 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         return df.format(now)
     }
 
-    private fun createFileName(): File {
+    private fun createFile(timestamp: String?, extension: String): File {
         // Get directory and filename
         val dir = getExternalFilesDir(Environment.DIRECTORY_MUSIC)
         return File(
             dir,
-            "soundchecker" + "_" + getTimestampString() + ".wav"
+            "soundchecker" + "_" + timestamp + "." + extension
         )
     }
 
     fun shareWaveFile(file: File) {
-        // Share WAVE file via GMail, Drive or other method.
+        shareFile(file, "audio/wav")
+    }
+
+    fun shareFile(file: File, type: String) {
+        // Share file via GMail, Drive or other method.
         val sharingIntent = Intent(Intent.ACTION_SEND)
-        sharingIntent.type = "audio/wav"
+        sharingIntent.type = type
         val subjectText = file.name
         sharingIntent.putExtra(Intent.EXTRA_SUBJECT, subjectText)
         val uri = FileProvider.getUriForFile(
@@ -781,7 +824,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         )
         sharingIntent.putExtra(Intent.EXTRA_STREAM, uri)
         sharingIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        startActivity(Intent.createChooser(sharingIntent, "Share WAV using:"))
+        startActivity(Intent.createChooser(sharingIntent, "Share using:"))
     }
 
     open fun getSelectedFileUnplayableReason(): String {
@@ -987,6 +1030,22 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         private val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_FLOAT
         private val WAVEFORM_HEIGHT = 200
         private val SPECTOGRAM_WIDTH = 300
+        private val AUDIO_FORMAT_TO_MEDIA_MUXER_OUTPUT_FORMAT = mapOf(
+                MediaFormat.MIMETYPE_AUDIO_AAC to MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4,
+                MediaFormat.MIMETYPE_AUDIO_AMR_NB to MediaMuxer.OutputFormat.MUXER_OUTPUT_3GPP,
+                MediaFormat.MIMETYPE_AUDIO_AMR_WB to MediaMuxer.OutputFormat.MUXER_OUTPUT_3GPP,
+                MediaFormat.MIMETYPE_AUDIO_OPUS to MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG,
+        )
+        private val MEDIA_MUXER_OUTPUT_FORMAT_TO_EXTENSION = mapOf(
+            MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4 to "mp4",
+            MediaMuxer.OutputFormat.MUXER_OUTPUT_3GPP to "3gp",
+            MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG to "ogg",
+        )
+        private val MEDIA_MUXER_OUTPUT_FORMAT_TO_STRING = mapOf(
+            MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4 to "audio/mp4",
+            MediaMuxer.OutputFormat.MUXER_OUTPUT_3GPP to "audio/3gpp",
+            MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG to "audio/ogg",
+        )
 
         private const val MIN_DECIBELS = -80F
     }
