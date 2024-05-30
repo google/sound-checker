@@ -39,6 +39,8 @@ class HarmonicAnalyzer {
         var signalNoiseRatioDB = 0.0
         var peakAmplitude = 0.0
         var bins: FloatArray? = null
+        var buffer: FloatArray? = null
+        var endOfStream = false
     }
 
     var peakMargin: Int
@@ -51,75 +53,99 @@ class HarmonicAnalyzer {
      *
      * @param buffer
      * @param numFrames must be a power of two
-     * @param signalBin
+     * @param signalBin if set to zero, only the peak amplitude and bins are valid
      * @return
      */
     fun analyze(buffer: FloatArray, numFrames: Int, signalBin: Int): Result {
-        val result = Result()
-        if (numFrames and numFrames - 1 != 0) {
-            throw IllegalArgumentException(
-                    "numFrames should be power of two, not "
-                            + numFrames
-            )
+        if (numFrames and (numFrames - 1) != 0) {
+            throw IllegalArgumentException("numFrames should be power of two, not $numFrames")
         }
 
-        // peak amplitude
+        val result = Result()
+        result.buffer = buffer.clone()
+        result.peakAmplitude = calculatePeakAmplitude(buffer, numFrames)
+
+        initializeImaginaryArray(numFrames)
+        FastFourierTransform.fft(numFrames, buffer, mImaginary!!)
+
+        if (signalBin != 0) {
+            analyzeSignal(result, buffer, numFrames, signalBin)
+        }
+
+        calculateNormalizedMagnitudes(result, buffer, numFrames)
+
+        return result
+    }
+
+    private fun calculatePeakAmplitude(buffer: FloatArray, numFrames: Int): Double {
         var peak = 0.0f
         for (i in 0 until numFrames) {
-            val sample = abs(buffer[i])
-            if (sample > peak) {
-                peak = sample
-            }
+            peak = max(peak, abs(buffer[i]))
         }
-        result.peakAmplitude = peak.toDouble()
+        return peak.toDouble()
+    }
 
-        // Allocate array to receive the imaginary component.
+    private fun initializeImaginaryArray(numFrames: Int) {
         if (mImaginary == null || mImaginary!!.size != numFrames) {
             mImaginary = FloatArray(numFrames)
         } else {
-            for (i in mImaginary!!.indices) {
-                mImaginary!![i] = 0.0f
-            }
+            mImaginary!!.fill(0.0f)
         }
-        FastFourierTransform.fft(numFrames, buffer, mImaginary!!)
+    }
 
-        // Measure over a few adjacent bins.
+    private fun analyzeSignal(result: Result, buffer: FloatArray, numFrames: Int, signalBin: Int) {
+        val signalMagSquared = calculateSignalMagnitudeSquared(buffer, signalBin)
+        result.totalHarmonicDistortion = calculateTotalHarmonicDistortion(buffer, numFrames, signalBin, signalMagSquared)
+        result.totalHarmonicDistortionPlusNoise = calculateTHDPlusNoise(buffer, numFrames, signalMagSquared)
+
+        val noiseMagSquared = calculateNoiseMagnitudeSquared(buffer, numFrames, signalMagSquared)
+        result.signalNoiseRatioDB = calculateSignalNoiseRatioDB(signalMagSquared, noiseMagSquared)
+    }
+
+    private fun calculateSignalMagnitudeSquared(buffer: FloatArray, signalBin: Int): Float {
         var signalMagSquared = 0.0f
-        for (i in 0 - mPeakMargin until (1 + mPeakMargin)) {
+        for (i in -mPeakMargin..mPeakMargin) {
             val bin = signalBin + i
             signalMagSquared += magnitudeSquared(buffer[bin], mImaginary!![bin])
         }
-        signalMagSquared = VERY_SMALL_NUMBER.coerceAtLeast(signalMagSquared)
+        return VERY_SMALL_NUMBER.coerceAtLeast(signalMagSquared)
+    }
 
-        // Calculate Total Harmonic Distortion (THD)
+    private fun calculateTotalHarmonicDistortion(buffer: FloatArray, numFrames: Int, signalBin: Int, signalMagSquared: Float): Double {
         var totalHarmonicsMagSquared = 0.0f
         val limit = numFrames / (2 * signalBin)
         for (harmonicScaler in 2 until limit) {
-            for (i in (0 - mPeakMargin) until (1 + mPeakMargin)) {
+            for (i in -mPeakMargin..mPeakMargin) {
                 val bin = (signalBin * harmonicScaler) + i
                 totalHarmonicsMagSquared += magnitudeSquared(buffer[bin], mImaginary!![bin])
             }
         }
+        return sqrt((totalHarmonicsMagSquared / signalMagSquared).toDouble())
+    }
 
-        result.totalHarmonicDistortion = sqrt((totalHarmonicsMagSquared / signalMagSquared).toDouble())
-
-        // Calculate Total Harmonic Distortion plus Noise (THD+N)
+    private fun calculateTHDPlusNoise(buffer: FloatArray, numFrames: Int, signalMagSquared: Float): Double {
         var totalMagSquared = 0.0f
-        // Ignore 0th bin because there may be DC offset
-        // Consider weighting by ITU-R (CCIR) 468 curve or A-weighting.
-        for (i in 1 until (numFrames / 2)) {
+        for (i in 1 until numFrames / 2) {
             totalMagSquared += magnitudeSquared(buffer[i], mImaginary!![i])
         }
-        var noiseMagSquared = totalMagSquared - signalMagSquared
-        if (noiseMagSquared < VERY_SMALL_NUMBER) noiseMagSquared = VERY_SMALL_NUMBER
-        result.totalHarmonicDistortionPlusNoise =
-                sqrt((noiseMagSquared / signalMagSquared).toDouble())
+        val noiseMagSquared = max(VERY_SMALL_NUMBER, totalMagSquared - signalMagSquared)
+        return sqrt((noiseMagSquared / signalMagSquared).toDouble())
+    }
 
-        // Calculate Signal To Noise Ratio in dB
+    private fun calculateNoiseMagnitudeSquared(buffer: FloatArray, numFrames: Int, signalMagSquared: Float): Float {
+        var totalMagSquared = 0.0f
+        for (i in 1 until numFrames / 2) {
+            totalMagSquared += magnitudeSquared(buffer[i], mImaginary!![i])
+        }
+        return max(VERY_SMALL_NUMBER, totalMagSquared - signalMagSquared)
+    }
+
+    private fun calculateSignalNoiseRatioDB(signalMagSquared: Float, noiseMagSquared: Float): Double {
         val signalNoisePowerRatio = signalMagSquared / noiseMagSquared
-        result.signalNoiseRatioDB = powerToDecibels(signalNoisePowerRatio.toDouble())
+        return powerToDecibels(signalNoisePowerRatio.toDouble())
+    }
 
-        // Two pass algorithm to calculate normalized magnitude of each frequency bin.
+    private fun calculateNormalizedMagnitudes(result: Result, buffer: FloatArray, numFrames: Int) {
         var peakMagnitude = VERY_SMALL_NUMBER
         result.bins = FloatArray(numFrames / 2)
         for (i in 0 until numFrames / 2) {
@@ -130,16 +156,10 @@ class HarmonicAnalyzer {
         for (i in 0 until numFrames / 2) {
             result.bins!![i] *= scaler
         }
-
-        return result
     }
 
-    private fun magnitude(real: Float, imag: Float): Float {
-        return sqrt(magnitudeSquared(real, imag).toDouble()).toFloat()
-    }
-
-    private fun magnitudeSquared(real: Float, imag: Float): Float {
-        return (real * real) + (imag * imag)
+    private fun magnitudeSquared(real: Float, imaginary: Float): Float {
+        return real * real + imaginary * imaginary
     }
 
     companion object {

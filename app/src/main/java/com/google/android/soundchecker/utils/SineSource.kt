@@ -16,6 +16,9 @@
 
 package com.google.android.soundchecker.utils
 
+import android.util.Log
+import com.google.android.soundchecker.mediacodec.AudioEncoderSource
+import java.util.Arrays
 import kotlin.math.sin
 
 class SineSource : AudioSource() {
@@ -23,6 +26,16 @@ class SineSource : AudioSource() {
     private val mAmplitudePort = ControlPort("amplitude", 0.0f, 0.1f, 1.0f)
     private var mPhase = 0.0
     private var mPhaseIncrement = 0.0
+    private var mShouldUpdateFrequency = false
+    private var mIsFrequencyIncreasing = true
+    private var mInverseSampleRate = 1.0f
+    private var mLastSampleRate = 1
+
+    companion object {
+        private const val TAG = "SineSource"
+        private const val FREQUENCY_INCREMENT_AMOUNT = 1.0001f;
+        private const val INVERSE_FREQUENCY_INCREMENT_AMOUNT  = 1 / FREQUENCY_INCREMENT_AMOUNT;
+    }
 
     fun getFrequencyPort(): ControlPort {
         return mFrequencyPort
@@ -30,6 +43,14 @@ class SineSource : AudioSource() {
 
     fun getAmplitudePort(): ControlPort {
         return mAmplitudePort
+    }
+
+    fun enableSineSweep() {
+        mShouldUpdateFrequency = true;
+    }
+
+    fun disableSineSweep() {
+        mShouldUpdateFrequency = false;
     }
 
     override fun render(buffer: FloatArray, offset: Int, stride: Int, numFrames: Int): Int {
@@ -42,19 +63,52 @@ class SineSource : AudioSource() {
             if (mPhase > Math.PI) {
                 mPhase -= Math.PI * 2.0
             }
+            if (mShouldUpdateFrequency) {
+                if (mIsFrequencyIncreasing) {
+                    mFrequencyPort.set(mFrequencyPort.get() * FREQUENCY_INCREMENT_AMOUNT)
+                } else {
+                    mFrequencyPort.set(mFrequencyPort.get() * INVERSE_FREQUENCY_INCREMENT_AMOUNT)
+                }
+                if (mFrequencyPort.get() >= mFrequencyPort.mMaximum) {
+                    mFrequencyPort.set(mFrequencyPort.mMaximum)
+                    mIsFrequencyIncreasing = false
+                }
+                if (mFrequencyPort.get() <= mFrequencyPort.mMinimum) {
+                    mFrequencyPort.set(mFrequencyPort.mMinimum)
+                    mIsFrequencyIncreasing = true
+                }
+            }
         }
         return numFrames
     }
 
     fun updatePhaseIncrement(frequency: Float) {
-        mPhaseIncrement = frequency * 2.0 * Math.PI / mSampleRate
+        if (mLastSampleRate != mSampleRate) {
+            mLastSampleRate = mSampleRate
+            mInverseSampleRate = 1.0f / mLastSampleRate
+        }
+        //Log.d(TAG, "mLastSampleRate: " + mLastSampleRate + " mInverseSampleRate: " +
+        //        mInverseSampleRate + " mPhaseIncrement: " + mPhaseIncrement)
+        mPhaseIncrement = frequency * 2.0 * Math.PI * mInverseSampleRate
     }
 
     override fun pull(buffer: ByteArray, numFrames: Int): Int {
         val floatArray = FloatArray(numFrames * getChannelCount())
         pull(floatArray, numFrames)
+        //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
         floatArrayToByteArray(floatArray, buffer)
+        //Log.d(TAG, "byteArray: " + Arrays.toString(buffer))
         return numFrames
+    }
+
+    // Pull I16 bytes
+    override fun pull(numBytes: Int, buffer: ByteArray): Int {
+        val floatArray = FloatArray(numBytes / 2 * getChannelCount())
+        pull(floatArray, numBytes / 2)
+        //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
+        floatArrayToI16ByteArray(floatArray, buffer)
+        //Log.d(TAG, "byteArray: " + Arrays.toString(buffer))
+        return numBytes / 2
     }
 
     override fun pull(buffer: FloatArray, numFrames: Int): Int {
