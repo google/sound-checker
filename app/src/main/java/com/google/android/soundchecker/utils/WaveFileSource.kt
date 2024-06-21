@@ -37,10 +37,9 @@ class WaveFileSource : AudioSource() {
 
     // Pull I16 bytes
     override fun pull(numBytes: Int, buffer: ByteArray): Int {
-        val int16SizeBytes = 2
-        val floatArray = FloatArray(numBytes / Float.SIZE_BYTES * int16SizeBytes)
-        val framesRead = pull(floatArray, numBytes / Float.SIZE_BYTES *
-                int16SizeBytes / getChannelCount())
+        val floatArray = FloatArray(numBytes * Short.SIZE_BYTES / Float.SIZE_BYTES)
+        val framesRead = pull(floatArray, numBytes * Short.SIZE_BYTES / Float.SIZE_BYTES /
+                getChannelCount())
         floatArrayToI16ByteArray(floatArray, buffer)
         //Log.d(TAG, "byteArray: " + Arrays.toString(buffer))
         return framesRead
