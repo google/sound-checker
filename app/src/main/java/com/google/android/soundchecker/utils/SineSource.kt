@@ -103,7 +103,7 @@ class SineSource : AudioSource() {
 
     // Pull I16 bytes
     override fun pull(numBytes: Int, buffer: ByteArray): Int {
-        val floatArray = FloatArray(numBytes / 2 * getChannelCount())
+        val floatArray = FloatArray(numBytes / 2)
         pull(floatArray, numBytes / 2)
         //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
         floatArrayToI16ByteArray(floatArray, buffer)

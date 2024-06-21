@@ -16,6 +16,7 @@
 
 package com.google.android.soundchecker.utils
 
+import android.media.AudioFormat
 import android.util.Log
 import com.google.android.soundchecker.mediacodec.AudioEncoderSource
 import java.util.Arrays
@@ -36,9 +37,10 @@ class WaveFileSource : AudioSource() {
 
     // Pull I16 bytes
     override fun pull(numBytes: Int, buffer: ByteArray): Int {
-        val floatArray = FloatArray(numBytes / 2 * getChannelCount())
-        val framesRead = pull(floatArray, numBytes / 2)
-        //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
+        val int16SizeBytes = 2
+        val floatArray = FloatArray(numBytes / Float.SIZE_BYTES * int16SizeBytes)
+        val framesRead = pull(floatArray, numBytes / Float.SIZE_BYTES *
+                int16SizeBytes / getChannelCount())
         floatArrayToI16ByteArray(floatArray, buffer)
         //Log.d(TAG, "byteArray: " + Arrays.toString(buffer))
         return framesRead
