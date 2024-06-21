@@ -104,7 +104,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mStatus = mutableStateOf("")
     private var mBins: FloatArray? = null
     private var mSpectogram: MutableList<FloatArray?>? = null
-    private var mLastOutputBuffer: FloatArray? = null
+    private var mWaveforms: MutableList<FloatArray?>? = null
 
     private var mSpinnersEnabled = mutableStateOf(true)
     private var mSampleRateText = mutableStateOf("")
@@ -474,17 +474,22 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     Text(text = mStatus.value,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold)
-                    WaveformDisplay(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(WAVEFORM_HEIGHT.dp)
-                            .border(1.dp, Color.Gray)
-                            .background(Color.Green)
-                            .padding(horizontal = 4.dp, vertical = 4.dp),
-                        yValues = mLastOutputBuffer,
-                        yMin = -1.0f,
-                        yMax = 1.0f,
-                        shouldZoom = true)
+                    if (mWaveforms != null) {
+                        for (waveform in mWaveforms!!) {
+                            WaveformDisplay(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(WAVEFORM_HEIGHT.dp)
+                                    .border(1.dp, Color.Gray)
+                                    .background(Color.Green)
+                                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                                yValues = waveform,
+                                yMin = -1.0f,
+                                yMax = 1.0f,
+                                shouldZoom = true
+                            )
+                        }
+                    }
                     WaveformDisplay(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -685,7 +690,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
             Toast.makeText(this, "Failed to init harmonic analyzer sink", Toast.LENGTH_LONG).show()
         }
 
-        mLastOutputBuffer = null
+        mWaveforms = null
         mBins = null
         mSpectogram = null
         mStatus.value = ""
@@ -732,7 +737,17 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
 
     private inner class MyHarmonicAnalyzerListener : HarmonicAnalyzerListener {
         override fun onMeasurement(analysisCount: Int, result: HarmonicAnalyzer.Result) {
-            mLastOutputBuffer = result.buffer
+            val numberOfSamples = result.buffer!!.size
+            val numberOfChannels = result.numOfChannels
+            val numberOfFrames = numberOfSamples / numberOfChannels
+            mWaveforms = mutableListOf<FloatArray?>()
+            for (channel in 0 until numberOfChannels) {
+                val waveform = FloatArray(numberOfFrames)
+                for (frame in 0 until numberOfFrames) {
+                    waveform[frame] = result.buffer!![channel + frame * numberOfChannels]
+                }
+                mWaveforms!!.add(waveform)
+            }
             if (mInputFile != null) {
                 inputFileOnMeasurement(analysisCount, result)
             } else if (mPlaySineSweep.value) {

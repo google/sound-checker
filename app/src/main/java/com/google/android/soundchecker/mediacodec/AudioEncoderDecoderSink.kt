@@ -66,7 +66,7 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
     }
 
     fun runAudioLoop() {
-        var outputBitsPerSample = 32
+        var outputBitsPerSample = 16
         if (mPcmEncoding == AudioFormat.ENCODING_PCM_FLOAT) {
             outputBitsPerSample = 24
         }
@@ -102,6 +102,7 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
             } else {
                 result.buffer = floatArray
                 result.endOfStream = (outputSize != buffer.size)
+                result.numOfChannels = mChannelCount
             }
             fireListeners(count++, result)
         }

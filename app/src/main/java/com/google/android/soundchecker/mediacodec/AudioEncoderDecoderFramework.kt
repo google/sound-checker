@@ -42,6 +42,7 @@ class AudioEncoderDecoderFramework (codec: String, codecFormat: String, sampleRa
             AudioEncoderDecoderSink.TARGET_FREQUENCY)
         if (reader != null) {
             mWaveFileSource.waveFileReader = reader
+            mWaveFileSource.mChannelCount = channelCount
             mAudioEncoderSource.setSource(mWaveFileSource)
         } else {
             mSineSource.getAmplitudePort().set(0.5f)
