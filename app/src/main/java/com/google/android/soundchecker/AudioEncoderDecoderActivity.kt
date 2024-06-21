@@ -741,7 +741,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
             val numberOfChannels = result.numOfChannels
             val numberOfFrames = numberOfSamples / numberOfChannels
             mWaveforms = mutableListOf<FloatArray?>()
-            for (channel in 0 until result.numOfChannels) {
+            for (channel in 0 until numberOfChannels) {
                 val waveform = FloatArray(numberOfFrames)
                 for (frame in 0 until numberOfFrames) {
                     waveform[frame] = result.buffer!![channel + frame * numberOfChannels]
