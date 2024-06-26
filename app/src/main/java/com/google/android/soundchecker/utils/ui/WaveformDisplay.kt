@@ -66,7 +66,7 @@ fun WaveformDisplay(
         Canvas(
             modifier = Modifier.fillMaxSize().graphicsLayer(
                 // 100% to 400% zoom limits
-                scaleX = maxOf(1.0f, minOf(5f, scale.value)),
+                scaleX = maxOf(1.0f, minOf(10f, scale.value)),
             ),
         ) {
             val offsetY = yMax / (yMax - yMin) * size.height;

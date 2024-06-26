@@ -414,8 +414,6 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                         Spacer(modifier = Modifier.padding(4.dp))
                         Row {
                             Text(text = "Play sine sweep",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Bold,
                                 modifier = Modifier.align(Alignment.CenterVertically))
                             Checkbox(
                                 checked = mPlaySineSweep.value,
@@ -471,11 +469,13 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     Spacer(modifier = Modifier.padding(4.dp))
                     Text(text = mParam.value)
                     Spacer(modifier = Modifier.padding(4.dp))
-                    Text(text = mStatus.value,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold)
+                    Text(text = mStatus.value)
                     if (mWaveforms != null) {
+                        var channelNumber = 1
                         for (waveform in mWaveforms!!) {
+                            Spacer(modifier = Modifier.padding(4.dp))
+                            Text(text = "Resulting waveform. Channel #$channelNumber. Pinch to " +
+                                    "zoom")
                             WaveformDisplay(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -488,28 +488,39 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                                 yMax = 1.0f,
                                 shouldZoom = true
                             )
+                            channelNumber++
                         }
                     }
-                    WaveformDisplay(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(WAVEFORM_HEIGHT.dp)
-                            .border(1.dp, Color.Gray)
-                            .background(Color.LightGray)
-                            .padding(horizontal = 4.dp, vertical = 4.dp),
-                        yValues = mBins,
-                        yMin = MIN_DECIBELS,
-                        yMax = 0.0f)
-                    SpectogramDisplay(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(WAVEFORM_HEIGHT.dp)
-                            .border(1.dp, Color.Gray)
-                            .background(Color.LightGray)
-                            .padding(horizontal = 4.dp, vertical = 4.dp),
-                        values = mSpectogram,
-                        min = MIN_DECIBELS,
-                        max = 0.0f)
+                    if (mBins != null) {
+                        Spacer(modifier = Modifier.padding(4.dp))
+                        Text(text = "Frequency bins")
+                        WaveformDisplay(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(WAVEFORM_HEIGHT.dp)
+                                .border(1.dp, Color.Gray)
+                                .background(Color.LightGray)
+                                .padding(horizontal = 4.dp, vertical = 4.dp),
+                            yValues = mBins,
+                            yMin = MIN_DECIBELS,
+                            yMax = 0.0f
+                        )
+                    }
+                    if (mSpectogram != null) {
+                        Spacer(modifier = Modifier.padding(4.dp))
+                        Text(text = "Spectogram")
+                        SpectogramDisplay(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(WAVEFORM_HEIGHT.dp)
+                                .border(1.dp, Color.Gray)
+                                .background(Color.LightGray)
+                                .padding(horizontal = 4.dp, vertical = 4.dp),
+                            values = mSpectogram,
+                            min = MIN_DECIBELS,
+                            max = 0.0f
+                        )
+                    }
                 }
             }
         }
@@ -707,7 +718,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
             harmonicAnalyzerSink.mFundamentalBin = 0
         }
 
-        mParam.value = String.format("Sample Rate = %6d Hz\nFFT size = %d\nFundamental Bin = %d\n",
+        mParam.value = String.format("Sample Rate = %6d Hz\nFFT size = %d\nFundamental Bin = %d",
                 harmonicAnalyzerSink.mSampleRate,
                 harmonicAnalyzerSink.mFftSize,
                 harmonicAnalyzerSink.mFundamentalBin)
