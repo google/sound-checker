@@ -65,7 +65,7 @@ fun WaveformDisplay(
     ) {
         Canvas(
             modifier = Modifier.fillMaxSize().graphicsLayer(
-                // 100% to 400% zoom limits
+                // 100% to 1000% zoom limits
                 scaleX = maxOf(1.0f, minOf(10f, scale.value)),
             ),
         ) {
