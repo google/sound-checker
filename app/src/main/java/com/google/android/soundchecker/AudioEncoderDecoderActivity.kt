@@ -1065,6 +1065,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                 MediaFormat.MIMETYPE_AUDIO_AMR_NB to MediaMuxer.OutputFormat.MUXER_OUTPUT_3GPP,
                 MediaFormat.MIMETYPE_AUDIO_AMR_WB to MediaMuxer.OutputFormat.MUXER_OUTPUT_3GPP,
                 MediaFormat.MIMETYPE_AUDIO_OPUS to MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG,
+                MediaFormat.MIMETYPE_AUDIO_FLAC to MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4,
         )
         private val MEDIA_MUXER_OUTPUT_FORMAT_TO_EXTENSION = mapOf(
             MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4 to "mp4",
