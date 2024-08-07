@@ -6,14 +6,19 @@ MediaCodec Tests lets you test encoding/decoding audio streams with various code
 You can encode a sine wave, a sine sweep, or from a file. You will be able to visualize the output
 and get metrics for noise and distortion.
 
-MediaCodec is the Java library used for encoding and decoding video and audio streams. We wanted
-to focus on testing audio streams in this project. By using MediaCodec for both encoding and
-decoding, we can feed audio data through the encoder and the decoder and analyze how much noise
-or distortion is added by the codec.
-
 Below is a diagram of a basic encoding/decoding pipeline.
 
 ![MediaCodec basic diagram](images/media-codec-basic-diagram.png "MediaCodec basic diagram")
+
+## Quick Start
+
+1. Install SoundChecker on your phone.
+2. Press "Test MediaCodec"
+3. Choose your codec, output format, sample rate, bitrate, and whether to use a sine sweep.
+You can also leave this as the default values.
+4. Press "Start". You will be able to see the results.
+5. Press "Stop".
+6. Press "Play" to hear the output.
 
 ## MediaCodec
 
@@ -67,7 +72,7 @@ decoded. This waveform can also be heard and exported. For certain codecs, the e
 can be exported.
 
 
-## Test parameters
+## Test Parameters
 
 Each phone has a set of supported audio codecs, some of which are encoders and some are decoders.
 It seems that the list of supported audio codecs is generally a subset of the supported decoders.
@@ -120,7 +125,7 @@ sine wave is in over time.
 For a spectrogram, each vertical bar is the density of frequencies for a particular time frame. So
 instead of frequency bins being in one graph in the sine wave graph, the frequency bins are mapped
 to one line, with higher frequencies being higher. We should expect most data to be within the
-correct signal bin, resulting in an appearance of hills.
+correct signal bin, resulting in a smooth narrow line. A poor result will have data smeared vertically instead.
 
 ## File Encoding Tests
 
