@@ -51,3 +51,8 @@ The THD and SNR test is used to calculate the [total harmonic distortion](https:
 The test allows you to select output device, input device, channel, frequency bin.
 The calculated result will be updated automatically.
 The graph at the bottom shows the decibels of every bin.
+
+## Media Codec test
+
+This test analyses the quality of Audio codes such as AAC.
+See [here for more details.](/docs/MediaCodecTests.md)
