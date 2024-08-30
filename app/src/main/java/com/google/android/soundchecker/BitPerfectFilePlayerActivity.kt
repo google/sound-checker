@@ -38,11 +38,10 @@ open class BitPerfectFilePlayerActivity : BaseFilePlayerActivity() {
     private var mBitPerfectMixerAttributes = ArrayList<AudioMixerAttributes>()
     private val mDeviceCallback = DeviceConnectionListener()
 
-    protected var mTag = "BitPerfectFilePlayerActivity"
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mAudioManager.registerAudioDeviceCallback(mDeviceCallback, getHandler())
+        mTag = "BitPerfectFilePlayerActivity"
     }
 
     override fun getSelectedFileUnplayableReason(): String {

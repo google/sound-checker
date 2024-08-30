@@ -16,6 +16,7 @@
 
 package com.google.android.soundchecker
 
+import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -67,8 +68,10 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
     }
 
     protected val mAttrs = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).build()
+    protected var mTag = "BaseFilePlayerActivity"
 
     protected var mFile: Uri? = null
+    protected var mFileName: String? = null
     protected var mIsPlaying = false
     protected lateinit var mAudioManager: AudioManager
 
@@ -143,6 +146,14 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
         mAudioManager.requestAudioFocus(mFocusRequest)
     }
 
+    override fun onStart() {
+        super.onStart()
+        val intent = Intent(this, FilePlayerService::class.java)
+        intent.putExtra(FilePlayerService.TITLE, mTag)
+        intent.putExtra(FilePlayerService.SONG_NAME, mFileName)
+        startForegroundService(intent)
+    }
+
     override fun onDestroy() {
         mAudioManager.abandonAudioFocusRequest(mFocusRequest)
         mMsgHandlerThread.quitSafely()
@@ -185,9 +196,9 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
         }
         val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
         cursor.moveToFirst()
-        val name = cursor.getString(index)
+        mFileName = cursor.getString(index)
         cursor.close()
-        return name
+        return mFileName!!
     }
 
     private fun onPlaybackButtonClicked() {

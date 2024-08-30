@@ -19,6 +19,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 
@@ -83,6 +85,12 @@
           android:name="android.support.FILE_PROVIDER_PATHS"
           android:resource="@xml/provider_paths" />
     </provider>
+
+    <service
+        android:name=".FilePlayerService"
+        android:foregroundServiceType="mediaPlayback"
+        android:exported="false">
+    </service>
   </application>
 
 </manifest>
