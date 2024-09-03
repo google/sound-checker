@@ -110,6 +110,7 @@ open class BitPerfectFilePlayerActivity : BaseFilePlayerActivity() {
     }
 
     private fun scanForUsbDevice() {
+        mBitPerfectMixerAttributes.clear()
         for (device in mAudioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
             mUsbDevice = null
             if (device.type == AudioDeviceInfo.TYPE_USB_HEADSET
