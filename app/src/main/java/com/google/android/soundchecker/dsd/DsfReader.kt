@@ -149,7 +149,7 @@ class DsfReader(inputStream: InputStream) {
         Arrays.fill(mData[channel], 0, mData[channel].size - 1, 0x0.toByte())
         try {
             if (mDataLeft < mData[channel].size && mStream.markSupported()) {
-                Log.d(TAG, "Reach end of file, mark supported, reset to beginning")
+                Log.d(TAG, "Reach end of file, mark supported, reset and play from beginning")
                 mStream.reset()
                 mDataLeft = mDataTotal
             }
