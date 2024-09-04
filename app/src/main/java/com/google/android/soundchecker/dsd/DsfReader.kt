@@ -62,6 +62,7 @@ class DsfReader(inputStream: InputStream) {
     private var mStream: InputStream
 
     private var mDataLeft: Long = 0
+    private var mDataTotal: Long = 0
     private var mTotalFileSize: Long = 0
     private var mIsInvalidFile = false
 
@@ -147,9 +148,15 @@ class DsfReader(inputStream: InputStream) {
     private fun readNextBlock(channel: Int): Boolean {
         Arrays.fill(mData[channel], 0, mData[channel].size - 1, 0x0.toByte())
         try {
+            if (mDataLeft < mData[channel].size && mStream.markSupported()) {
+                Log.d(TAG, "Reach end of file, mark supported, reset to beginning")
+                mStream.reset()
+                mDataLeft = mDataTotal
+            }
             val sz = mStream.read(mData[channel])
             if (sz != mData[channel].size) {
                 Log.w(TAG, "Cannot read full buffer: $sz")
+                return false
             }
             mDataLeft -= sz.toLong()
             mChannelCursor[channel] = 0
@@ -307,7 +314,15 @@ class DsfReader(inputStream: InputStream) {
             Log.e(TAG, "Invalid data chunk length:$length")
             return false
         }
-        mDataLeft = length - CHUNK_HEADER_LENGTH
+        mDataTotal = length - CHUNK_HEADER_LENGTH
+        if (mDataTotal > Int.MAX_VALUE) {
+            mDataTotal = Int.MAX_VALUE.toLong()
+        }
+        mDataLeft = mDataTotal
+        if (mStream.markSupported()) {
+            mStream.mark(mDataTotal.toInt())
+            Log.d(TAG, "mark=$mDataTotal")
+        }
         Log.i(TAG, "Data chunk size=$length")
         return true
     }
