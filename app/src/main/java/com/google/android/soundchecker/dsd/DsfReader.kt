@@ -90,7 +90,7 @@ class DsfReader(inputStream: InputStream) {
             return false
         }
         for (i in 0 until mChannelCount) {
-            if (!readNextBlock(i)) {
+            if (readNextBlock(i) <= 0) {
                 return false
             }
         }
@@ -115,7 +115,7 @@ class DsfReader(inputStream: InputStream) {
     }
 
     fun read(channel: Int): Byte? {
-        if (mChannelCursor[channel] >= BLOCK_SIZE_PER_CHANNEL && !readNextBlock(channel)) {
+        if (mChannelCursor[channel] >= BLOCK_SIZE_PER_CHANNEL && readNextBlock(channel) <= 0) {
             return null
         }
         val v = getByteAccordingToBitsPerSample(mData[channel][mChannelCursor[channel]])
@@ -145,26 +145,27 @@ class DsfReader(inputStream: InputStream) {
         }
     }
 
-    private fun readNextBlock(channel: Int): Boolean {
-        Arrays.fill(mData[channel], 0, mData[channel].size - 1, 0x0.toByte())
+    /**
+     * Returns the number of data read. Returns negative value if there is an error when reading or
+     * when it reaches the end of file and mark is not supported.
+     */
+    private fun readNextBlock(channel: Int): Int {
+        Arrays.fill(mData[channel], 0, mData[channel].size - 1, 0xA.toByte())
         try {
-            if (mDataLeft < mData[channel].size && mStream.markSupported()) {
+            var sz = mStream.read(mData[channel])
+            if (sz < 0 && mStream.markSupported()) {
                 Log.d(TAG, "Reach end of file, mark supported, reset and play from beginning")
                 mStream.reset()
                 mDataLeft = mDataTotal
-            }
-            val sz = mStream.read(mData[channel])
-            if (sz != mData[channel].size) {
-                Log.w(TAG, "Cannot read full buffer: $sz")
-                return false
+                sz = mStream.read(mData[channel])
             }
             mDataLeft -= sz.toLong()
             mChannelCursor[channel] = 0
+            return sz
         } catch (e: IOException) {
             Log.e(TAG, "Unable to read, set end of file. Error:$e")
-            return false
+            return -1
         }
-        return true
     }
 
     private fun readInteger(length: Int): Long? {
