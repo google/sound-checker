@@ -106,7 +106,7 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
             if (mUseAnalyzer) {
                 var bin = mFundamentalBin
                 if (!mUseFundamentalBin) {
-                    bin = 0
+                    bin = 0 // Skip THD and SNR calculations when the input is not a sine wave
                 }
                 result = mAnalyzer.analyze(floatArray, mFftSize, bin)
             } else {
