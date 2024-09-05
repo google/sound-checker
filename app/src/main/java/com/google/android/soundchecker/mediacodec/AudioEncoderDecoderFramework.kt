@@ -17,6 +17,7 @@
 package com.google.android.soundchecker.mediacodec
 
 import android.media.MediaMuxer
+import android.util.Log
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerListener
 
 import com.google.android.soundchecker.utils.SineSource
@@ -61,9 +62,11 @@ class AudioEncoderDecoderFramework (codec: String, codecFormat: String, sampleRa
         mAudioDecoderSource.setSource(mAudioEncoderSource)
         mAudioEncoderSource.setDecoder(mAudioDecoderSource)
         harmonicAnalyzerSink.setSource(mAudioDecoderSource)
+        mAudioDecoderSource.setHarmonicAnalyzer(harmonicAnalyzerSink)
         harmonicAnalyzerSink.mChannelCount = channelCount
         harmonicAnalyzerSink.mFundamentalBin = bin
         harmonicAnalyzerSink.mUseAnalyzer = (reader == null)
+        harmonicAnalyzerSink.mUseFundamentalBin = (reader == null) && !usePitchSweep
     }
 
     fun start() {

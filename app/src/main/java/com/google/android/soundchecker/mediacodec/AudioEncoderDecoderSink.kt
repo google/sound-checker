@@ -17,6 +17,7 @@
 package com.google.android.soundchecker.mediacodec
 
 import android.media.AudioFormat
+import android.media.MediaFormat
 import android.util.Log
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzer
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerListener
@@ -41,9 +42,11 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
     var mFftSize = 1024 // must be power of 2
     var mFundamentalBin = calculateNearestBin(TARGET_FREQUENCY)
     var mUseAnalyzer = false
+    var mUseFundamentalBin = false
     private val mListeners = ArrayList<HarmonicAnalyzerListener>()
     private val mAnalyzer = HarmonicAnalyzer()
     private val mFileOutputStream = FileOutputStream(outputFile)
+    private var mOutputFormat : MediaFormat? = null
 
     override fun setSource(source: AudioSource?) {
         mAudioSource = source
@@ -70,8 +73,7 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
         if (mPcmEncoding == AudioFormat.ENCODING_PCM_FLOAT) {
             outputBitsPerSample = 24
         }
-        val waveFileWriter = WaveFileWriter(mFileOutputStream, mSampleRate, mChannelCount,
-            outputBitsPerSample)
+        var waveFileWriter : WaveFileWriter? = null
         var count = 0
         while (mThread?.isEnabled() == true) {
             val audioSource = mAudioSource!!
@@ -89,6 +91,10 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
             } else {
                 Log.d(TAG, "unsupported pcmEncoding: " + mPcmEncoding)
             }
+            if (waveFileWriter == null) {
+                waveFileWriter = WaveFileWriter(mFileOutputStream, mSampleRate, mChannelCount,
+                    outputBitsPerSample)
+            }
             waveFileWriter.write(floatArray, 0, outputSize / mPcmEncoding.bytesPerSample())
             //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
             Log.d(TAG, "fundamental bin: " + mFundamentalBin)
@@ -98,7 +104,11 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
             // Analyze it
             var result : HarmonicAnalyzer.Result = HarmonicAnalyzer.Result()
             if (mUseAnalyzer) {
-                result = mAnalyzer.analyze(floatArray, mFftSize, mFundamentalBin)
+                var bin = mFundamentalBin
+                if (!mUseFundamentalBin) {
+                    bin = 0
+                }
+                result = mAnalyzer.analyze(floatArray, mFftSize, bin)
             } else {
                 result.buffer = floatArray
                 result.endOfStream = (outputSize != buffer.size)
@@ -131,6 +141,12 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
     fun setOutputPcmEncoding(pcmEncoding: Int) {
         mPcmEncoding = pcmEncoding
         mBuffer = ByteArray(mFftSize * mPcmEncoding.bytesPerSample())
+    }
+
+    fun setOutputFormat(format: MediaFormat) {
+        mOutputFormat = format
+        mSampleRate = mOutputFormat!!.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+        mFundamentalBin = calculateNearestBin(TARGET_FREQUENCY)
     }
 
     companion object {
