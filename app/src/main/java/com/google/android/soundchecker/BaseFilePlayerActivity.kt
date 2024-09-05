@@ -83,6 +83,8 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
     private var mMsg = mutableStateOf("")
     private var mPlaybackButtonText = mutableStateOf("")
 
+    private var mHasLostAudioFocus = false
+
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -185,6 +187,10 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
         mPlaybackButtonText.value = getString(R.string.start)
     }
 
+    open fun getStartDelayAfterRegainingAudioFocus(): Int {
+        return 0
+    }
+
     private fun getSelectedFileName(): String {
         if (mFile == null) {
             return ""
@@ -220,6 +226,10 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
     private fun sendMsg(msg: Int, arg1: Int, arg2: Int, obj: Object?, delay: Int) {
         val time = SystemClock.uptimeMillis() + delay
         mHandler.sendMessageAtTime(mHandler.obtainMessage(msg, arg1, arg2, obj), time)
+    }
+
+    private fun clearMsg(msg: Int) {
+        mHandler.removeMessages(msg)
     }
 
     inner class MsgHandler constructor(
@@ -265,11 +275,15 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
         when (focusChanged) {
             AudioManager.AUDIOFOCUS_LOSS,
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                clearMsg(START_PLAYBACK)
                 sendStopPlaybackMsg(0)
+                mHasLostAudioFocus = true
             }
 
             AudioManager.AUDIOFOCUS_GAIN -> {
-                sendStartPlaybackMsg(0)
+                sendStartPlaybackMsg(
+                    if (mHasLostAudioFocus) getStartDelayAfterRegainingAudioFocus() else 0)
+                mHasLostAudioFocus = false
             }
 
             else -> {
