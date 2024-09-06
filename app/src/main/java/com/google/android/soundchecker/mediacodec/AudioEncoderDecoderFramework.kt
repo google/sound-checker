@@ -17,7 +17,6 @@
 package com.google.android.soundchecker.mediacodec
 
 import android.media.MediaMuxer
-import android.util.Log
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerListener
 
 import com.google.android.soundchecker.utils.SineSource
