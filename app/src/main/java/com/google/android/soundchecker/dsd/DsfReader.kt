@@ -24,6 +24,8 @@ import java.io.IOException
 import java.io.InputStream
 import java.util.Arrays
 
+import com.google.android.soundchecker.utils.reverseByte
+
 class DsfReader(inputStream: InputStream) {
     companion object {
         private const val TAG = "DsfReader"
@@ -40,6 +42,7 @@ class DsfReader(inputStream: InputStream) {
         private const val MIN_FMT_SIZE = 48
         private const val MAX_CHANNEL_COUNT = 6
         private const val BLOCK_SIZE_PER_CHANNEL = 4096
+        private const val DSD_SILENCE: Byte = 0x69
 
         private val CHANNEL_TYPE_MAP = mapOf(
                 1 to AudioFormat.CHANNEL_OUT_MONO,
@@ -57,6 +60,14 @@ class DsfReader(inputStream: InputStream) {
         )
 
         private const val DEFAULT_ENCODING = AudioFormat.ENCODING_PCM_24BIT_PACKED
+
+        private val BYTE_REVERSE_LOOKUP = ByteArray(256)
+
+        init {
+            for (i in 0 .. 255) {
+                BYTE_REVERSE_LOOKUP[i] = reverseByte(i.toByte())
+            }
+        }
     }
 
     private var mStream: InputStream
@@ -97,21 +108,10 @@ class DsfReader(inputStream: InputStream) {
         return true
     }
 
-    private fun reverseByte(value: Byte): Byte {
-        var value = value
-        var b: Byte = 0x0
-        for (i in 0..7) {
-            b = (b.toInt() shl 1).toByte()
-            b = (b.toInt() or (value.toInt() and 0x1)).toByte()
-            value = (value.toInt() shr 1).toByte()
-        }
-        return b
-    }
-
     private fun getByteAccordingToBitsPerSample(value: Byte): Byte {
         // If bits per sample is 8, the data is stored as MSB.
         // Otherwise, the data is stored as LSB.
-        return if (mBitsPerSample == 8) value else reverseByte(value)
+        return if (mBitsPerSample == 8) value else BYTE_REVERSE_LOOKUP[value.toInt() and 0xFF]
     }
 
     fun read(channel: Int): Byte? {
@@ -150,7 +150,7 @@ class DsfReader(inputStream: InputStream) {
      * when it reaches the end of file and mark is not supported.
      */
     private fun readNextBlock(channel: Int): Int {
-        Arrays.fill(mData[channel], 0, mData[channel].size - 1, 0xA.toByte())
+        Arrays.fill(mData[channel], 0, mData[channel].size - 1, DSD_SILENCE)
         try {
             var sz = mStream.read(mData[channel])
             if (sz < 0 && mStream.markSupported()) {

@@ -197,3 +197,14 @@ fun remapToLog(input: FloatArray, outputSize: Int): FloatArray {
     }
     return output
 }
+
+fun reverseByte(value: Byte): Byte {
+    var value = value
+    var b: Byte = 0x0
+    for (i in 0..7) {
+        b = (b.toInt() shl 1).toByte()
+        b = (b.toInt() or (value.toInt() and 0x1)).toByte()
+        value = (value.toInt() shr 1).toByte()
+    }
+    return b
+}
