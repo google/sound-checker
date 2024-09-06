@@ -37,6 +37,8 @@ class AudioDecoderSource() : AudioSource() {
 
     private var inputArray = ByteArray(MAX_BYTES_TO_PULL)
 
+    private var harmonicAnalyzer: AudioEncoderDecoderSink? = null
+
     var isEndOfStream = false
     var isDecodingComplete = false
 
@@ -44,9 +46,14 @@ class AudioDecoderSource() : AudioSource() {
         audioSource = source
     }
 
+    fun setHarmonicAnalyzer(analyzer: AudioEncoderDecoderSink?) {
+        harmonicAnalyzer = analyzer
+    }
+
     fun setFormat(format: MediaFormat) {
         mChannelCount = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
         mSampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+        Log.d(TAG, "decoder sample rate: " + mSampleRate)
         inputFormat = MediaFormat.createAudioFormat(format.getString(MediaFormat.KEY_MIME)!!,
             mSampleRate, mChannelCount)
         val csd0Buffer = format.getByteBuffer("csd-0")
@@ -191,6 +198,7 @@ class AudioDecoderSource() : AudioSource() {
 
             if (outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                 Log.d(TAG, "new output format: " + decoder!!.outputFormat)
+                harmonicAnalyzer?.setOutputFormat(decoder!!.outputFormat)
             }
 
             val isConfigFrame = bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0

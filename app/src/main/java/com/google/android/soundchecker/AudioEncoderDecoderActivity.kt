@@ -705,6 +705,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         mBins = null
         mSpectogram = null
         mStatus.value = ""
+        mParam.value = ""
 
         mAudioEncoderDecoderFramework?.addListener(mListener)
 
@@ -717,11 +718,6 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         if (mPlaySineSweep.value) {
             harmonicAnalyzerSink.mFundamentalBin = 0
         }
-
-        mParam.value = String.format("Sample Rate = %6d Hz\nFFT size = %d\nFundamental Bin = %d",
-                harmonicAnalyzerSink.mSampleRate,
-                harmonicAnalyzerSink.mFftSize,
-                harmonicAnalyzerSink.mFundamentalBin)
 
         mAudioEncoderDecoderFramework?.start()
     }
@@ -766,6 +762,11 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
             } else {
                 sineOnMeasurement(analysisCount, result)
             }
+
+            mParam.value = String.format("Decoded Sample Rate = %d Hz\nFFT size = %d\nFundamental Bin = %d",
+                mAudioEncoderDecoderFramework?.harmonicAnalyzerSink?.mSampleRate,
+                mAudioEncoderDecoderFramework?.harmonicAnalyzerSink?.mFftSize,
+                mAudioEncoderDecoderFramework?.harmonicAnalyzerSink?.mFundamentalBin)
 
             if (result.endOfStream) {
                 onStopTest()

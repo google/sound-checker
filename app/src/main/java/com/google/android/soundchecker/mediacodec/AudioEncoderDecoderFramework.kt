@@ -61,9 +61,11 @@ class AudioEncoderDecoderFramework (codec: String, codecFormat: String, sampleRa
         mAudioDecoderSource.setSource(mAudioEncoderSource)
         mAudioEncoderSource.setDecoder(mAudioDecoderSource)
         harmonicAnalyzerSink.setSource(mAudioDecoderSource)
+        mAudioDecoderSource.setHarmonicAnalyzer(harmonicAnalyzerSink)
         harmonicAnalyzerSink.mChannelCount = channelCount
         harmonicAnalyzerSink.mFundamentalBin = bin
         harmonicAnalyzerSink.mUseAnalyzer = (reader == null)
+        harmonicAnalyzerSink.mUseFundamentalBin = (reader == null) && !usePitchSweep
     }
 
     fun start() {
