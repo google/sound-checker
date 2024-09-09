@@ -24,6 +24,8 @@ import java.io.IOException
 import java.io.InputStream
 import java.util.Arrays
 
+import com.google.android.soundchecker.utils.reverseByte
+
 class DsfReader(inputStream: InputStream) {
     companion object {
         private const val TAG = "DsfReader"
@@ -40,6 +42,7 @@ class DsfReader(inputStream: InputStream) {
         private const val MIN_FMT_SIZE = 48
         private const val MAX_CHANNEL_COUNT = 6
         private const val BLOCK_SIZE_PER_CHANNEL = 4096
+        private const val DSD_SILENCE: Byte = 0x69
 
         private val CHANNEL_TYPE_MAP = mapOf(
                 1 to AudioFormat.CHANNEL_OUT_MONO,
@@ -57,11 +60,20 @@ class DsfReader(inputStream: InputStream) {
         )
 
         private const val DEFAULT_ENCODING = AudioFormat.ENCODING_PCM_24BIT_PACKED
+
+        private val BYTE_REVERSE_LOOKUP = ByteArray(256)
+
+        init {
+            for (i in 0 .. 255) {
+                BYTE_REVERSE_LOOKUP[i] = reverseByte(i.toByte())
+            }
+        }
     }
 
     private var mStream: InputStream
 
     private var mDataLeft: Long = 0
+    private var mDataTotal: Long = 0
     private var mTotalFileSize: Long = 0
     private var mIsInvalidFile = false
 
@@ -89,32 +101,21 @@ class DsfReader(inputStream: InputStream) {
             return false
         }
         for (i in 0 until mChannelCount) {
-            if (!readNextBlock(i)) {
+            if (readNextBlock(i) <= 0) {
                 return false
             }
         }
         return true
     }
 
-    private fun reverseByte(value: Byte): Byte {
-        var value = value
-        var b: Byte = 0x0
-        for (i in 0..7) {
-            b = (b.toInt() shl 1).toByte()
-            b = (b.toInt() or (value.toInt() and 0x1)).toByte()
-            value = (value.toInt() shr 1).toByte()
-        }
-        return b
-    }
-
     private fun getByteAccordingToBitsPerSample(value: Byte): Byte {
         // If bits per sample is 8, the data is stored as MSB.
         // Otherwise, the data is stored as LSB.
-        return if (mBitsPerSample == 8) value else reverseByte(value)
+        return if (mBitsPerSample == 8) value else BYTE_REVERSE_LOOKUP[value.toInt() and 0xFF]
     }
 
     fun read(channel: Int): Byte? {
-        if (mChannelCursor[channel] >= BLOCK_SIZE_PER_CHANNEL && !readNextBlock(channel)) {
+        if (mChannelCursor[channel] >= BLOCK_SIZE_PER_CHANNEL && readNextBlock(channel) <= 0) {
             return null
         }
         val v = getByteAccordingToBitsPerSample(mData[channel][mChannelCursor[channel]])
@@ -144,20 +145,27 @@ class DsfReader(inputStream: InputStream) {
         }
     }
 
-    private fun readNextBlock(channel: Int): Boolean {
-        Arrays.fill(mData[channel], 0, mData[channel].size - 1, 0x0.toByte())
+    /**
+     * Returns the number of data read. Returns negative value if there is an error when reading or
+     * when it reaches the end of file and mark is not supported.
+     */
+    private fun readNextBlock(channel: Int): Int {
+        Arrays.fill(mData[channel], 0, mData[channel].size - 1, DSD_SILENCE)
         try {
-            val sz = mStream.read(mData[channel])
-            if (sz != mData[channel].size) {
-                Log.w(TAG, "Cannot read full buffer: $sz")
+            var sz = mStream.read(mData[channel])
+            if (sz < 0 && mStream.markSupported()) {
+                Log.d(TAG, "Reach end of file, mark supported, reset and play from beginning")
+                mStream.reset()
+                mDataLeft = mDataTotal
+                sz = mStream.read(mData[channel])
             }
             mDataLeft -= sz.toLong()
             mChannelCursor[channel] = 0
+            return sz
         } catch (e: IOException) {
             Log.e(TAG, "Unable to read, set end of file. Error:$e")
-            return false
+            return -1
         }
-        return true
     }
 
     private fun readInteger(length: Int): Long? {
@@ -307,7 +315,15 @@ class DsfReader(inputStream: InputStream) {
             Log.e(TAG, "Invalid data chunk length:$length")
             return false
         }
-        mDataLeft = length - CHUNK_HEADER_LENGTH
+        mDataTotal = length - CHUNK_HEADER_LENGTH
+        if (mDataTotal > Int.MAX_VALUE) {
+            mDataTotal = Int.MAX_VALUE.toLong()
+        }
+        mDataLeft = mDataTotal
+        if (mStream.markSupported()) {
+            mStream.mark(mDataTotal.toInt())
+            Log.d(TAG, "mark=$mDataTotal")
+        }
         Log.i(TAG, "Data chunk size=$length")
         return true
     }
