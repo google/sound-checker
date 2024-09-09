@@ -61,6 +61,14 @@ open class BitPerfectFilePlayerActivity : BaseFilePlayerActivity() {
         return ""
     }
 
+    override fun getStartDelayAfterRegainingAudioFocus(): Int {
+        // Always wait a while to start bit-perfect playback after regaining audio focus.
+        // That allows the playback that gets audio focus can be fully released. The reason of
+        // waiting previous playback to be released is that the framework will not allow to create
+        // bit-perfect playback if there is any high priority playback active.
+        return 500
+    }
+
     protected val mPlaybackConfigurationDiscover: PlaybackConfigurationDiscover =
             object : PlaybackConfigurationDiscover {
                 override fun onPlaybackConfigured(format: AudioFormat): AudioFormat {
