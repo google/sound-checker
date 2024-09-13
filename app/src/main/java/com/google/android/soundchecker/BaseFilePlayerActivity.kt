@@ -16,7 +16,10 @@
 
 package com.google.android.soundchecker
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -85,6 +88,8 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
 
     private var mHasLostAudioFocus = false
 
+    private lateinit var becomingNoisyReceiver : BecomingNoisyReceiver
+
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -148,12 +153,24 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
         mAudioManager.requestAudioFocus(mFocusRequest)
     }
 
+    override fun onResume() {
+        super.onResume()
+        becomingNoisyReceiver = BecomingNoisyReceiver()
+        registerReceiver(becomingNoisyReceiver,
+                IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+    }
+
     override fun onStart() {
         super.onStart()
         val intent = Intent(this, FilePlayerService::class.java)
         intent.putExtra(FilePlayerService.TITLE, mTag)
         intent.putExtra(FilePlayerService.SONG_NAME, mFileName)
         startForegroundService(intent)
+    }
+
+    override fun onPause() {
+        unregisterReceiver(becomingNoisyReceiver)
+        super.onPause()
     }
 
     override fun onDestroy() {
@@ -288,6 +305,15 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
 
             else -> {
                 // Need to handle other cases
+            }
+        }
+    }
+
+    inner class BecomingNoisyReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (AudioManager.ACTION_AUDIO_BECOMING_NOISY == intent.action) {
+                // The external device is disconnected, stop playback.
+                sendStopPlaybackMsg(0)
             }
         }
     }
