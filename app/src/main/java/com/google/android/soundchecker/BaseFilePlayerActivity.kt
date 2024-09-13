@@ -150,7 +150,6 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
                 .setWillPauseWhenDucked(false)
                 .setOnAudioFocusChangeListener(this, mHandler)
                 .build()
-        mAudioManager.requestAudioFocus(mFocusRequest)
     }
 
     override fun onResume() {
@@ -195,6 +194,8 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
     }
 
     open fun startPlayback() {
+        mAudioManager.requestAudioFocus(mFocusRequest)
+        mHasLostAudioFocus = false
         mIsPlaying = true
         mPlaybackButtonText.value = getString(R.string.stop)
     }
