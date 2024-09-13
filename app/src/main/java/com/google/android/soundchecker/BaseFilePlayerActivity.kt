@@ -145,7 +145,6 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
                 .setWillPauseWhenDucked(false)
                 .setOnAudioFocusChangeListener(this, mHandler)
                 .build()
-        mAudioManager.requestAudioFocus(mFocusRequest)
     }
 
     override fun onStart() {
