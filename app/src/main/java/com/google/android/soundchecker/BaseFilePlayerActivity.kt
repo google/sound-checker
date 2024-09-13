@@ -178,6 +178,8 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
     }
 
     open fun startPlayback() {
+        mAudioManager.requestAudioFocus(mFocusRequest)
+        mHasLostAudioFocus = false
         mIsPlaying = true
         mPlaybackButtonText.value = getString(R.string.stop)
     }
