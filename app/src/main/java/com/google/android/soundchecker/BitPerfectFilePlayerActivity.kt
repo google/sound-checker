@@ -124,8 +124,9 @@ open class BitPerfectFilePlayerActivity : BaseFilePlayerActivity() {
                     || device.type == AudioDeviceInfo.TYPE_USB_DEVICE) {
                 mUsbDevice = device
                 for (mixerAttr in mAudioManager.getSupportedMixerAttributes(device)) {
+                    Log.d(mTag, "found supported mixer attributes=$mixerAttr")
                     if (mixerAttr.mixerBehavior == AudioMixerAttributes.MIXER_BEHAVIOR_BIT_PERFECT) {
-                        Log.i(mTag, "find mixer attributes=$mixerAttr")
+                        Log.i(mTag, "found bit-perfect mixer attributes=$mixerAttr")
                         mBitPerfectMixerAttributes.add(mixerAttr)
                     }
                 }
