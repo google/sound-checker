@@ -18,7 +18,7 @@ package com.google.android.soundchecker.utils
 
 import android.media.AudioFormat
 
-open class AudioEndpoint(val isInput: Boolean) {
+open class AudioEndpoint(val isInput: Boolean, val errorCallback: AudioErrorCallback? = null) {
     var mChannelCount = 1
     var mChannelMask = AudioFormat.CHANNEL_INVALID
     var mEncoding = AudioFormat.ENCODING_DEFAULT

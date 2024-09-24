@@ -26,7 +26,8 @@ import android.util.Log
 import java.nio.ByteBuffer
 
 class AudioTrackSink(var preferredDevice: AudioDeviceInfo? = null,
-                     var selectedChannelIndex: Int = -1) : AudioSink() {
+                     var selectedChannelIndex: Int = -1,
+                     errorCallback: AudioErrorCallback? = null) : AudioSink(errorCallback) {
     private var mAudioSource: AudioSource? = null
     private var mAudioTrack: AudioTrack? = null
     private var mFramesWritten: Long = 0
@@ -43,7 +44,7 @@ class AudioTrackSink(var preferredDevice: AudioDeviceInfo? = null,
         mAudioSource = source
     }
 
-    private fun open() {
+    private fun open() : Int {
         mThread = object : AudioThread() {
             override fun run() {
                 runAudioLoop()
@@ -56,9 +57,14 @@ class AudioTrackSink(var preferredDevice: AudioDeviceInfo? = null,
             mFloatBuffer = FloatArray(getChannelCount() * FRAMES_PER_BURST)
         }
         if (mAudioTrack == null) {
-            mAudioTrack = createAudioTrack(0)
+            try {
+                mAudioTrack = createAudioTrack(0)
+            } catch (_: Exception) {
+                errorCallback?.onError(AudioErrorCallback.ERROR, "Failed to create AudioTrack")
+            }
             mAudioTrack?.preferredDevice = preferredDevice
         }
+        return AudioErrorCallback.SUCCESS
     }
 
     private fun close() {
@@ -67,7 +73,9 @@ class AudioTrackSink(var preferredDevice: AudioDeviceInfo? = null,
     }
 
     override fun start() {
-        open()
+        if (open() != AudioErrorCallback.SUCCESS) {
+            return
+        }
         checkNotNull(mAudioTrack) {
             Log.e(TAG, "Failed to create AudioTrack")
         }
@@ -112,6 +120,8 @@ class AudioTrackSink(var preferredDevice: AudioDeviceInfo? = null,
             }
             if (numWritten < 0) {
                 Log.e(TAG, "Failed to write, result=$numWritten")
+                errorCallback?.onError(
+                        numWritten, "Failed to write to AudioTrack, ret=$numWritten")
                 break
             }
         }

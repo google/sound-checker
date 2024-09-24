@@ -61,7 +61,7 @@ class DSDFilePlayerActivity : BitPerfectFilePlayerActivity() {
         val deviceFormat = mPlaybackConfigurationDiscover.onPlaybackConfigured(
             formatBuilder.build())
         val dopWrapper = DopWrapper(fileReader, deviceFormat.encoding)
-        mAudioTrackSink = AudioTrackSink()
+        mAudioTrackSink = AudioTrackSink(null, -1, mErrorCallback)
         val audioTrackSink = mAudioTrackSink!!
         dopWrapper.connect(audioTrackSink)
         audioTrackSink.mEncoding = deviceFormat.encoding

@@ -18,7 +18,8 @@ package com.google.android.soundchecker.utils
 
 import android.media.MediaCodec
 
-open class AudioSource : AudioEndpoint(true) {
+open class AudioSource(errorCallback: AudioErrorCallback? = null)
+        : AudioEndpoint(true, errorCallback) {
     open fun pull(buffer: ByteArray, numFrames: Int): MediaCodec.BufferInfo {
         // Default implementation, do nothing
         return MediaCodec.BufferInfo()
