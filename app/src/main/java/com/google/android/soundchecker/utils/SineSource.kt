@@ -16,6 +16,7 @@
 
 package com.google.android.soundchecker.utils
 
+import android.media.MediaCodec
 import android.util.Log
 import com.google.android.soundchecker.mediacodec.AudioEncoderSource
 import java.util.Arrays
@@ -92,23 +93,27 @@ class SineSource : AudioSource() {
         mPhaseIncrement = frequency * 2.0 * Math.PI * mInverseSampleRate
     }
 
-    override fun pull(buffer: ByteArray, numFrames: Int): Int {
+    override fun pull(buffer: ByteArray, numFrames: Int): MediaCodec.BufferInfo {
         val floatArray = FloatArray(numFrames * getChannelCount())
         pull(floatArray, numFrames)
         //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
         floatArrayToByteArray(floatArray, buffer)
         //Log.d(TAG, "byteArray: " + Arrays.toString(buffer))
-        return numFrames
+        val bufferInfo = MediaCodec.BufferInfo()
+        bufferInfo.set(0, numFrames, 0, 0)
+        return bufferInfo
     }
 
     // Pull I16 bytes
-    override fun pull(numBytes: Int, buffer: ByteArray): Int {
+    override fun pull(numBytes: Int, buffer: ByteArray): MediaCodec.BufferInfo {
         val floatArray = FloatArray(numBytes * Short.SIZE_BYTES / Float.SIZE_BYTES)
         pull(floatArray, numBytes * Short.SIZE_BYTES / Float.SIZE_BYTES / getChannelCount())
         //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
         floatArrayToI16ByteArray(floatArray, buffer)
         //Log.d(TAG, "byteArray: " + Arrays.toString(buffer))
-        return numBytes / 2
+        val bufferInfo = MediaCodec.BufferInfo()
+        bufferInfo.set(0, numBytes / 2, 0, 0)
+        return bufferInfo
     }
 
     override fun pull(buffer: FloatArray, numFrames: Int): Int {

@@ -16,6 +16,7 @@
 
 package com.google.android.soundchecker.utils
 
+import android.media.MediaCodec
 import android.util.Log
 
 class MultiSineSource : AudioSource() {
@@ -67,11 +68,13 @@ class MultiSineSource : AudioSource() {
         return numFrames
     }
 
-    override fun pull(buffer: ByteArray, numFrames: Int): Int {
+    override fun pull(buffer: ByteArray, numFrames: Int): MediaCodec.BufferInfo {
         val floatArray = FloatArray(numFrames)
         pull(floatArray, numFrames)
         floatArrayToByteArray(floatArray, buffer)
-        return numFrames
+        val bufferInfo = MediaCodec.BufferInfo()
+        bufferInfo.set(0, numFrames, 0, 0)
+        return bufferInfo
     }
 
     override fun pull(buffer: FloatArray, numFrames: Int): Int {

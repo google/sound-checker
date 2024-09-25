@@ -39,6 +39,8 @@ class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate:
     private var audioDecoderSource: AudioDecoderSource? = null
     private var audioTrackIndex = -1
 
+    private var numBytesSubmitted = 0
+
     init {
         Log.i(TAG, "Creating AudioEncoderSource, codec=$codec, codecFormat=$codecFormat, " +
                 "sampleRate=$sampleRate, bitRate=$bitRate")
@@ -101,11 +103,11 @@ class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate:
         }
     }
 
-    override fun pull(numBytes: Int, buffer: ByteArray): Int {
+    override fun pull(numBytes: Int, buffer: ByteArray): MediaCodec.BufferInfo {
         Log.i(TAG, "pulling " + numBytes)
         if (buffer.isEmpty()) {
             Log.i(TAG, "The buffer is empty, do nothing")
-            return 0
+            return MediaCodec.BufferInfo()
         }
 
         var inputIndex: Int
@@ -120,11 +122,14 @@ class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate:
                     FRAMES_TO_PROCESS)
                 val inputArray = ByteArray(getBytesPerFrame() * framesToProcess)
                 var framesProcessed = 0
+                var bufferInfo = MediaCodec.BufferInfo()
                 if (mEncoding == AudioFormat.ENCODING_PCM_16BIT) {
-                    framesProcessed = audioSource!!.pull(framesToProcess * getBytesPerFrame(),
+                    bufferInfo = audioSource!!.pull(framesToProcess * getBytesPerFrame(),
                             inputArray)
+                    framesProcessed = bufferInfo.size
                 } else { // FLOAT
-                    framesProcessed = audioSource!!.pull(inputArray, framesToProcess)
+                    bufferInfo = audioSource!!.pull(inputArray, framesToProcess)
+                    framesProcessed = bufferInfo.size
                 }
                 //Log.d(TAG, "inputArraya: " + Arrays.toString(inputArray))
                 inputBuffer.put(inputArray)
@@ -133,7 +138,10 @@ class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate:
                 if (framesToProcess != framesProcessed) {
                     flags = MediaCodec.BUFFER_FLAG_END_OF_STREAM
                 }
-                encoder.queueInputBuffer(inputIndex, 0, getBytesPerFrame() * framesToProcess, 0, flags)
+                val pts: Long = (numBytesSubmitted * 1000000L) / (getBytesPerFrame().toLong()
+                        * mChannelCount * mSampleRate)
+                numBytesSubmitted += getBytesPerFrame() * framesProcessed
+                encoder.queueInputBuffer(inputIndex, 0, getBytesPerFrame() * framesToProcess, pts, flags)
                 //Log.d(TAG, " " + inputIndex + " " + getBytesPerFrame() * framesToProcess)
             }
 
@@ -173,7 +181,7 @@ class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate:
                 //Log.d(TAG, "buffer: " + Arrays.toString(buffer))
 
                 encoder.releaseOutputBuffer(outputIndex, false)
-                return bufferInfo.size
+                return bufferInfo
             }
         }
     }

@@ -124,11 +124,11 @@ class AudioDecoderSource() : AudioSource() {
         decoder?.release()
     }
 
-    override fun pull(numBytes: Int, buffer: ByteArray): Int {
+    override fun pull(numBytes: Int, buffer: ByteArray): MediaCodec.BufferInfo {
         Log.i(TAG, "pulling " + numBytes)
         if (buffer.isEmpty()) {
             Log.i(TAG, "The buffer is empty, do nothing")
-            return 0
+            return MediaCodec.BufferInfo()
         }
         Arrays.fill(buffer, 0, buffer.size - 1, 0x00.toByte())
 
@@ -152,17 +152,19 @@ class AudioDecoderSource() : AudioSource() {
                 //Log.d(TAG, "1pointer: " + destinationBufferPointer + " size: " +
                 //        destinationBufferSize)
                 if (isDecodingComplete || destinationBufferPointer >= destinationBufferSize) {
-                    return min(destinationBufferPointer, destinationBufferSize)
+                    val bufferInfo = MediaCodec.BufferInfo()
+                    bufferInfo.set(0, min(destinationBufferPointer, destinationBufferSize), 0, 0)
+                    return bufferInfo
                 }
             } else if (isDecodingComplete) {
-                return 0
+                return MediaCodec.BufferInfo()
             }
 
             if (!isEndOfStream) {
                 var isInitialDecode = false
-                var encodedSize = 0
+                var bufferInfo = MediaCodec.BufferInfo()
                 if (decoder == null) {
-                    encodedSize = audioSource!!.pull(MAX_BYTES_TO_PULL, inputArray)
+                    bufferInfo = audioSource!!.pull(MAX_BYTES_TO_PULL, inputArray)
                     isInitialDecode = true
                     //Thread.sleep(5_000)
                 }
@@ -175,7 +177,7 @@ class AudioDecoderSource() : AudioSource() {
                         if (inputBuffer.capacity() > inputArray.size) {
                             inputArray = ByteArray(inputBuffer.capacity())
                         }
-                        encodedSize = audioSource!!.pull(inputBuffer.capacity(), inputArray)
+                        bufferInfo = audioSource!!.pull(inputBuffer.capacity(), inputArray)
                     }
                     //Log.d(TAG, "capacity: " + inputBuffer.capacity())
                     //Log.d(TAG, "inputArray: " + Arrays.toString(inputArray))
@@ -186,10 +188,10 @@ class AudioDecoderSource() : AudioSource() {
                         Log.d(TAG, "decoderEndOfStream")
                     }
                     decoder!!.queueInputBuffer(
-                        inputIndex, 0, encodedSize,
-                        0, flags
+                        inputIndex, 0, bufferInfo.size,
+                        bufferInfo.presentationTimeUs, flags
                     )
-                    //Log.d(TAG, "queued " + inputIndex + " " + encodedSize)
+                    //Log.d(TAG, "queued " + inputIndex + " " + bufferInfo.size)
                 }
             }
 
@@ -240,7 +242,10 @@ class AudioDecoderSource() : AudioSource() {
                     if (isDecodingComplete || destinationBufferPointer >= destinationBufferSize) {
                         decoder!!.releaseOutputBuffer(outputIndex, false)
                         //Log.d(TAG, "test3")
-                        return min(destinationBufferPointer, destinationBufferSize)
+                        val bufferInfo = MediaCodec.BufferInfo()
+                        bufferInfo.set(0, min(destinationBufferPointer, destinationBufferSize),
+                            0, 0)
+                        return bufferInfo
                     }
                 }
 
