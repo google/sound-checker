@@ -12,7 +12,7 @@ Below is a diagram of a basic encoding/decoding pipeline.
 
 ## Quick Start
 
-1. Install SoundChecker on your phone.
+1. Follow [Build.md](Build.md) to install SoundChecker on your phone.
 2. Press "Test MediaCodec"
 3. Choose your codec, output format, sample rate, bitrate, and whether to use a sine sweep.
 You can also leave this as the default values.

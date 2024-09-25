@@ -2,6 +2,8 @@
 
 # How to Use Sound-checker
 
+Follow [Build.md](Build.md) to build and install sound-checker. 
+
 ## Bit perfect player
 
 The bit-perfect playback is supported since Android API level 34. The bit-perfect player will only
