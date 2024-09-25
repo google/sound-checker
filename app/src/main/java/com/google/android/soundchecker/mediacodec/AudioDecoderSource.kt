@@ -66,18 +66,10 @@ class AudioDecoderSource() : AudioSource() {
         if (csd1Buffer != null) {
             Log.d(TAG, "csd-1: " + String(csd1Buffer.array(), Charset.defaultCharset()))
             inputFormat!!.setByteBuffer("csd-1", csd1Buffer);
-        } else if (format.getString(MediaFormat.KEY_MIME) == MediaFormat.MIMETYPE_AUDIO_OPUS) {
-            val csd1Bytes = byteArrayOf(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
-            csd1Buffer = ByteBuffer.wrap(csd1Bytes)
-            inputFormat!!.setByteBuffer("csd-1", csd1Buffer);
         }
         var csd2Buffer = format.getByteBuffer("csd-2")
         if (csd2Buffer != null) {
             Log.d(TAG, "csd-2: " + String(csd2Buffer.array(), Charset.defaultCharset()))
-            inputFormat!!.setByteBuffer("csd-2", csd2Buffer);
-        } else if (format.getString(MediaFormat.KEY_MIME) == MediaFormat.MIMETYPE_AUDIO_OPUS) {
-            val csd2Bytes = byteArrayOf(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
-            csd2Buffer = ByteBuffer.wrap(csd2Bytes)
             inputFormat!!.setByteBuffer("csd-2", csd2Buffer);
         }
         //inputFormat = format
