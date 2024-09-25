@@ -16,15 +16,18 @@
 
 package com.google.android.soundchecker
 
+import android.Manifest.permission.POST_NOTIFICATIONS
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.AudioManager.OnAudioFocusChangeListener
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
@@ -95,7 +98,8 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
 
     private var mHasLostAudioFocus = false
 
-    private lateinit var becomingNoisyReceiver : BecomingNoisyReceiver
+    private val mBecomingNoisyReceiver = BecomingNoisyReceiver()
+    private val mPlaybackStateChangedReceiver = PlaybackStateChangedReceiver()
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -160,31 +164,28 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
                 .setWillPauseWhenDucked(false)
                 .setOnAudioFocusChangeListener(this, mHandler)
                 .build()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        becomingNoisyReceiver = BecomingNoisyReceiver()
-        registerReceiver(becomingNoisyReceiver,
-                IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
-    }
-
-    override fun onStart() {
-        super.onStart()
+        checkAndRequestNotificationPermission()
         val intent = Intent(this, FilePlayerService::class.java)
-        intent.putExtra(FilePlayerService.TITLE, mTag)
-        intent.putExtra(FilePlayerService.SONG_NAME, mFileName)
         startForegroundService(intent)
-    }
 
-    override fun onPause() {
-        unregisterReceiver(becomingNoisyReceiver)
-        super.onPause()
+        registerReceiver(mBecomingNoisyReceiver,
+                IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+
+        val playbackStateIntentFilter = IntentFilter(FilePlayerService.ACTION_START_PLAYBACK)
+        playbackStateIntentFilter.addAction(FilePlayerService.ACTION_STOP_PLAYBACK)
+        registerReceiver(mPlaybackStateChangedReceiver, playbackStateIntentFilter,
+                         RECEIVER_EXPORTED)
     }
 
     override fun onDestroy() {
+        unregisterReceiver(mBecomingNoisyReceiver)
+        unregisterReceiver(mPlaybackStateChangedReceiver)
         mAudioManager.abandonAudioFocusRequest(mFocusRequest)
+        stopPlayback()
         mMsgHandlerThread.quitSafely()
+        val intent = Intent(this, FilePlayerService::class.java)
+        intent.action = FilePlayerService.ACTION_STOP_SERVICE
+        startForegroundService(intent)
         super.onDestroy()
     }
 
@@ -209,11 +210,21 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
         mHasLostAudioFocus = false
         mIsPlaying = true
         mPlaybackButtonText.value = getString(R.string.stop)
+        val intent = Intent(this, FilePlayerService::class.java)
+        intent.action = FilePlayerService.ACTION_PLAYBACK_STARTED
+        intent.putExtra(FilePlayerService.TITLE, mTag)
+        intent.putExtra(FilePlayerService.SONG_NAME, mFileName)
+        startForegroundService(intent)
     }
 
     open fun stopPlayback() {
         mIsPlaying = false
         mPlaybackButtonText.value = getString(R.string.start)
+        val intent = Intent(this, FilePlayerService::class.java)
+        intent.action = FilePlayerService.ACTION_PLAYBACK_STOPPED
+        intent.putExtra(FilePlayerService.TITLE, mTag)
+        intent.putExtra(FilePlayerService.SONG_NAME, mFileName)
+        startForegroundService(intent)
     }
 
     open fun getStartDelayAfterRegainingAudioFocus(): Int {
@@ -337,6 +348,32 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
                 mPlaybackErrorMsg.value = msg
                 stopPlayback()
             }
+        }
+    }
+
+    inner class PlaybackStateChangedReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                FilePlayerService.ACTION_START_PLAYBACK -> {
+                    sendStartPlaybackMsg(0)
+                }
+
+                FilePlayerService.ACTION_STOP_PLAYBACK -> {
+                    sendStopPlaybackMsg(0)
+                }
+
+                else -> {
+                    // Unknown action, ignore
+                }
+            }
+        }
+    }
+
+    private fun checkAndRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                registerForActivityResult(
+                        ActivityResultContracts.RequestPermission()) { }.launch(POST_NOTIFICATIONS)
         }
     }
 }
