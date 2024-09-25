@@ -91,6 +91,8 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
     private var mMsg = mutableStateOf("")
     private var mPlaybackButtonText = mutableStateOf("")
 
+    private var mPlaybackErrorMsg = mutableStateOf("")
+
     private var mHasLostAudioFocus = false
 
     private lateinit var becomingNoisyReceiver : BecomingNoisyReceiver
@@ -143,6 +145,9 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Text(text = msg)
+
+                    val playbackErrorMsg by mPlaybackErrorMsg
+                    Text(text = playbackErrorMsg)
                 }
             }
         }
@@ -199,6 +204,7 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
     }
 
     open fun startPlayback() {
+        mPlaybackErrorMsg.value = ""
         mAudioManager.requestAudioFocus(mFocusRequest)
         mHasLostAudioFocus = false
         mIsPlaying = true
@@ -328,6 +334,7 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
         override fun onError(error: Int, msg: String) {
             if (error != AudioErrorCallback.SUCCESS) {
                 Log.e(mTag, "Stop playback when receiving error=$error, msg=$msg")
+                mPlaybackErrorMsg.value = msg
                 stopPlayback()
             }
         }

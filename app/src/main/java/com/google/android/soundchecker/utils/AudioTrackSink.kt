@@ -59,8 +59,9 @@ class AudioTrackSink(var preferredDevice: AudioDeviceInfo? = null,
         if (mAudioTrack == null) {
             try {
                 mAudioTrack = createAudioTrack(0)
-            } catch (_: Exception) {
-                errorCallback?.onError(AudioErrorCallback.ERROR, "Failed to create AudioTrack")
+            } catch (e: Exception) {
+                errorCallback?.onError(AudioErrorCallback.ERROR,
+                                       "Failed to create AudioTrack, err=${e.message}")
             }
             mAudioTrack?.preferredDevice = preferredDevice
         }
