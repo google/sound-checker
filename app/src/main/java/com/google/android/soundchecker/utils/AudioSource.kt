@@ -16,10 +16,12 @@
 
 package com.google.android.soundchecker.utils
 
+import android.media.MediaCodec
+
 open class AudioSource : AudioEndpoint(true) {
-    open fun pull(buffer: ByteArray, numFrames: Int): Int {
+    open fun pull(buffer: ByteArray, numFrames: Int): MediaCodec.BufferInfo {
         // Default implementation, do nothing
-        return 0
+        return MediaCodec.BufferInfo()
     }
 
     open fun pull(buffer: FloatArray, numFrames: Int): Int {
@@ -32,9 +34,9 @@ open class AudioSource : AudioEndpoint(true) {
         return 0
     }
 
-    open fun pull(numBytes: Int, buffer: ByteArray): Int {
+    open fun pull(numBytes: Int, buffer: ByteArray): MediaCodec.BufferInfo {
         // Default implementation, do nothing
-        return 0
+        return MediaCodec.BufferInfo()
     }
 
     fun connect(sink: AudioSink) {

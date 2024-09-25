@@ -17,6 +17,7 @@
 package com.google.android.soundchecker.mediacodec
 
 import android.media.AudioFormat
+import android.media.MediaCodec
 import android.media.MediaFormat
 import android.util.Log
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzer
@@ -79,7 +80,8 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
             val audioSource = mAudioSource!!
             val buffer = mBuffer!!
             // pull audio from source
-            val outputSize = audioSource.pull(buffer.size, buffer)
+            var bufferInfo = MediaCodec.BufferInfo()
+            bufferInfo = audioSource.pull(buffer.size, buffer)
             //Log.d(TAG, "bufferSize: " + buffer.size)
             //Log.d(TAG, "buffer: " + Arrays.toString(buffer))
             val floatArray = FloatArray(mFftSize)
@@ -95,11 +97,11 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
                 waveFileWriter = WaveFileWriter(mFileOutputStream, mSampleRate, mChannelCount,
                     outputBitsPerSample)
             }
-            waveFileWriter.write(floatArray, 0, outputSize / mPcmEncoding.bytesPerSample())
+            waveFileWriter.write(floatArray, 0, bufferInfo.size / mPcmEncoding.bytesPerSample())
             //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
             Log.d(TAG, "fundamental bin: " + mFundamentalBin)
             Log.d(TAG, "mUseAnalyzer: " + mUseAnalyzer)
-            Log.d(TAG, "outputSize: " + outputSize)
+            Log.d(TAG, "outputSize: " + bufferInfo.size)
             Log.d(TAG, "buffer.size: " + buffer.size)
             // Analyze it
             var result : HarmonicAnalyzer.Result = HarmonicAnalyzer.Result()
@@ -111,7 +113,7 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
                 result = mAnalyzer.analyze(floatArray, mFftSize, bin)
             } else {
                 result.buffer = floatArray
-                result.endOfStream = (outputSize != buffer.size)
+                result.endOfStream = (bufferInfo.size != buffer.size)
                 result.numOfChannels = mChannelCount
             }
             fireListeners(count++, result)

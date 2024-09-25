@@ -17,6 +17,7 @@
 package com.google.android.soundchecker.utils
 
 import android.media.AudioFormat
+import android.media.MediaCodec
 import android.util.Log
 import com.google.android.soundchecker.mediacodec.AudioEncoderSource
 import java.util.Arrays
@@ -26,23 +27,27 @@ class WaveFileSource : AudioSource() {
 
     public var waveFileReader : WaveFileReader? = null
 
-    override fun pull(buffer: ByteArray, numFrames: Int): Int {
+    override fun pull(buffer: ByteArray, numFrames: Int): MediaCodec.BufferInfo {
         val floatArray = FloatArray(numFrames * getChannelCount())
         val framesRead = pull(floatArray, numFrames)
         //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
         floatArrayToByteArray(floatArray, buffer)
         //Log.d(TAG, "byteArray: " + Arrays.toString(buffer))
-        return framesRead
+        val bufferInfo = MediaCodec.BufferInfo()
+        bufferInfo.set(0, framesRead, 0, 0)
+        return bufferInfo
     }
 
     // Pull I16 bytes
-    override fun pull(numBytes: Int, buffer: ByteArray): Int {
+    override fun pull(numBytes: Int, buffer: ByteArray): MediaCodec.BufferInfo {
         val floatArray = FloatArray(numBytes * Short.SIZE_BYTES / Float.SIZE_BYTES)
         val framesRead = pull(floatArray, numBytes * Short.SIZE_BYTES / Float.SIZE_BYTES /
                 getChannelCount())
         floatArrayToI16ByteArray(floatArray, buffer)
         //Log.d(TAG, "byteArray: " + Arrays.toString(buffer))
-        return framesRead
+        val bufferInfo = MediaCodec.BufferInfo()
+        bufferInfo.set(0, framesRead, 0, 0)
+        return bufferInfo
     }
 
     override fun pull(buffer: FloatArray, numFrames: Int): Int {

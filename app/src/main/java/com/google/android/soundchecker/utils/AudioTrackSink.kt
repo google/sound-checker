@@ -20,6 +20,7 @@ import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.media.MediaCodec
 import android.util.Log
 
 import java.nio.ByteBuffer
@@ -90,8 +91,9 @@ class AudioTrackSink(var preferredDevice: AudioDeviceInfo? = null,
             val audioTrack = mAudioTrack!!
             val numWritten = if (selectedChannelIndex < 0) {
                 val buffer = mBuffer!!
-                val framesRead = audioSource.pull(buffer, FRAMES_PER_BURST)
-                val sizeInByte = framesRead * getBytesPerFrame()
+                var bufferInfo = MediaCodec.BufferInfo()
+                bufferInfo = audioSource.pull(buffer, FRAMES_PER_BURST)
+                val sizeInByte = bufferInfo.size * getBytesPerFrame()
                 val byteBuffer = ByteBuffer.wrap(buffer, 0, sizeInByte)
                 audioTrack.write(byteBuffer, sizeInByte, AudioTrack.WRITE_BLOCKING)
             } else {

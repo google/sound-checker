@@ -17,6 +17,7 @@
 package com.google.android.soundchecker.dsd
 
 import android.media.AudioFormat
+import android.media.MediaCodec
 import android.util.Log
 
 import java.util.Arrays
@@ -49,24 +50,27 @@ class DopWrapper(private var dsfReader: DsfReader, encoding: Int) : AudioSource(
         mBytesPerFrame = getBytesPerFrame()
     }
 
-    override fun pull(buffer: ByteArray, numFrames: Int): Int {
+    override fun pull(buffer: ByteArray, numFrames: Int): MediaCodec.BufferInfo {
         if (buffer.isEmpty()) {
             Log.i(TAG, "The buffer is empty, do nothing")
-            return 0
+            return MediaCodec.BufferInfo()
         }
         Arrays.fill(buffer, 0, buffer.size - 1, 0x00.toByte())
         var index = 0
         val targetFrames = min(numFrames, buffer.size / mBytesPerFrame)
+        val bufferInfo = MediaCodec.BufferInfo()
         for (i in 0 until targetFrames) {
             val syncByte = getSyncByte()
             for (j in 0 until mChannelCount) {
                 index += mBytesPerSample
                 if (!fillData(buffer, j, index - 1, syncByte)) {
-                    return i
+                    bufferInfo.set(0, i, 0, 0)
+                    return bufferInfo
                 }
             }
         }
-        return targetFrames
+        bufferInfo.set(0, targetFrames, 0, 0)
+        return bufferInfo
     }
 
     private fun fillData(arr: ByteArray, channel: Int, index: Int, syncByte: Byte): Boolean {
