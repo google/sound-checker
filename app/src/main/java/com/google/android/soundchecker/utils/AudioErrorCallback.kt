@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,18 @@
 
 package com.google.android.soundchecker.utils
 
-abstract class AudioSink(errorCallback: AudioErrorCallback? = null)
-        : AudioEndpoint(false, errorCallback) {
-    abstract fun setSource(source: AudioSource?)
+abstract class AudioErrorCallback {
+    companion object {
+        // Error code, keep synced with AudioSystem
+        const val SUCCESS = 0
+        const val ERROR = -1
+        const val BAD_VALUE = -2
+        const val INVALID_OPERATION = -3
+        const val PERMISSION_DENIED = -4
+        const val NO_INIT = -5
+        const val DEAD_OBJECT = -6
+        const val WOULD_BLOCK = -7
+    }
 
-    abstract fun start()
-    abstract fun stop()
+    abstract fun onError(error: Int, msg: String)
 }

@@ -32,6 +32,7 @@ import android.os.Looper
 import android.os.Message
 import android.os.SystemClock
 import android.provider.OpenableColumns
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -56,6 +57,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 
+import com.google.android.soundchecker.utils.AudioErrorCallback
+
 /**
  * Base class for selecting file and playback. Note this file is a base class for UI related
  * operation. It doesn't contain the functionality of playback. The child class should implement
@@ -78,6 +81,8 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
     protected var mIsPlaying = false
     protected lateinit var mAudioManager: AudioManager
 
+    protected val mErrorCallback = FilePlaybackErrorCallback()
+
     private lateinit var mFocusRequest: AudioFocusRequest
 
     private val mMsgHandlerThread = HandlerThread("audioSample_FilePlayer_MsgHandler")
@@ -85,6 +90,8 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
 
     private var mMsg = mutableStateOf("")
     private var mPlaybackButtonText = mutableStateOf("")
+
+    private var mPlaybackErrorMsg = mutableStateOf("")
 
     private var mHasLostAudioFocus = false
 
@@ -138,6 +145,9 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Text(text = msg)
+
+                    val playbackErrorMsg by mPlaybackErrorMsg
+                    Text(text = playbackErrorMsg)
                 }
             }
         }
@@ -194,6 +204,7 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
     }
 
     open fun startPlayback() {
+        mPlaybackErrorMsg.value = ""
         mAudioManager.requestAudioFocus(mFocusRequest)
         mHasLostAudioFocus = false
         mIsPlaying = true
@@ -315,6 +326,16 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
             if (AudioManager.ACTION_AUDIO_BECOMING_NOISY == intent.action) {
                 // The external device is disconnected, stop playback.
                 sendStopPlaybackMsg(0)
+            }
+        }
+    }
+
+    inner class FilePlaybackErrorCallback : AudioErrorCallback() {
+        override fun onError(error: Int, msg: String) {
+            if (error != AudioErrorCallback.SUCCESS) {
+                Log.e(mTag, "Stop playback when receiving error=$error, msg=$msg")
+                mPlaybackErrorMsg.value = msg
+                stopPlayback()
             }
         }
     }
