@@ -139,6 +139,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mInputFileSampleRate = 0
     private var mInputFileStream: InputStream? = null
 
+    private var mOutputTrackCount = 0;
+
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -544,6 +546,9 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     ",bitsPerSample: " + reader.getBitsPerSample() +
                     ",numSampleFrames: " + reader.getNumSampleFrames())
 
+            mOutputTrackCount++
+            val currentOutputTrackCount = mOutputTrackCount
+
             var channelFormat = AudioFormat.CHANNEL_OUT_MONO
             if (reader.getNumChannels() == 2) {
                 channelFormat = AudioFormat.CHANNEL_OUT_STEREO
@@ -571,7 +576,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                 val music = FloatArray(framesPerWrite * reader.getNumChannels())
                 var framesRead = framesPerWrite
                 var isPos = true;
-                while (framesRead == framesPerWrite) {
+                // Only one stream should be playing audio at once.
+                while (framesRead == framesPerWrite && mOutputTrackCount == currentOutputTrackCount) {
                     framesRead = reader.getDataFloat(music, framesPerWrite)
                     //Log.d(TAG, Arrays.toString(music))
                     at.write(music, 0, framesRead * reader.getNumChannels(), WRITE_BLOCKING)
@@ -624,6 +630,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     }
 
     private fun runTest() {
+        mOutputTrackCount++ // Stop the previous audioStream
         mStartButtonEnabled.value = false
         mStopButtonEnabled.value = true
         mShareButtonEnabled.value = false
@@ -1047,6 +1054,12 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         }
         report.append("Is Encoder: ${mediaCodecInfo.isEncoder}")
         mCodecStatus.value = report.toString()
+    }
+
+    override fun onStop() {
+        super.onStop()
+
+        mOutputTrackCount++ // Stop the current playing audio stream
     }
 
     companion object {
