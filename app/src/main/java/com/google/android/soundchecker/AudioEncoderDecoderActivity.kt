@@ -139,7 +139,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mInputFileSampleRate = 0
     private var mInputFileStream: InputStream? = null
 
-    private var mOutputTrackCount = 0;
+    private var mPlayAudioMonotonicCounter = 0 // Used to limit one output stream at the time
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -546,8 +546,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     ",bitsPerSample: " + reader.getBitsPerSample() +
                     ",numSampleFrames: " + reader.getNumSampleFrames())
 
-            mOutputTrackCount++
-            val currentOutputTrackCount = mOutputTrackCount
+            mPlayAudioMonotonicCounter++
+            val currentPlayAudioMonotonicCounter = mPlayAudioMonotonicCounter
 
             var channelFormat = AudioFormat.CHANNEL_OUT_MONO
             if (reader.getNumChannels() == 2) {
@@ -577,7 +577,9 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                 var framesRead = framesPerWrite
                 var isPos = true;
                 // Only one stream should be playing audio at once.
-                while (framesRead == framesPerWrite && mOutputTrackCount == currentOutputTrackCount) {
+                // Since this loop happens often, whenever mPlayAudioMonotonicCounter increments,
+                // stop writing audio.
+                while (framesRead == framesPerWrite && mPlayAudioMonotonicCounter == currentPlayAudioMonotonicCounter) {
                     framesRead = reader.getDataFloat(music, framesPerWrite)
                     //Log.d(TAG, Arrays.toString(music))
                     at.write(music, 0, framesRead * reader.getNumChannels(), WRITE_BLOCKING)
@@ -630,7 +632,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     }
 
     private fun runTest() {
-        mOutputTrackCount++ // Stop the previous audioStream
+        mPlayAudioMonotonicCounter++ // Stop the previous audioStream
         mStartButtonEnabled.value = false
         mStopButtonEnabled.value = true
         mShareButtonEnabled.value = false
@@ -1059,7 +1061,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
 
-        mOutputTrackCount++ // Stop the current playing audio stream
+        mPlayAudioMonotonicCounter++ // Stop the current playing audio stream
     }
 
     companion object {
