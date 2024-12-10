@@ -139,7 +139,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mInputFileSampleRate = 0
     private var mInputFileStream: InputStream? = null
 
-    private var mPlayAudioMonotonicCounter = 0 // Used to limit one output stream at the time
+    private var mPlayAudioMonotonicCounter = 0 // Used to allow one AudioTrack to play at a time.
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
