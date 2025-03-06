@@ -1093,6 +1093,6 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
             MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG to "audio/ogg",
         )
 
-        private const val MIN_DECIBELS = -80F
+        private const val MIN_DECIBELS = -120F
     }
 }
