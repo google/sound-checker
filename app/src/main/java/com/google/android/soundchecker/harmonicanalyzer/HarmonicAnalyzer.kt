@@ -73,7 +73,7 @@ class HarmonicAnalyzer {
             analyzeSignal(result, buffer, numFrames, signalBin)
         }
 
-        calculateNormalizedMagnitudes(result, buffer, numFrames)
+        calculateMagnitudes(result, buffer, numFrames)
 
         return result
     }
@@ -146,16 +146,10 @@ class HarmonicAnalyzer {
         return powerToDecibels(signalNoisePowerRatio.toDouble())
     }
 
-    private fun calculateNormalizedMagnitudes(result: Result, buffer: FloatArray, numFrames: Int) {
-        var peakMagnitude = VERY_SMALL_NUMBER
+    private fun calculateMagnitudes(result: Result, buffer: FloatArray, numFrames: Int) {
         result.bins = FloatArray(numFrames / 2)
         for (i in 0 until numFrames / 2) {
             result.bins!![i] = sqrt(magnitudeSquared(buffer[i], mImaginary!![i]))
-            peakMagnitude = max(peakMagnitude, result.bins!![i])
-        }
-        val scaler = 1F / peakMagnitude
-        for (i in 0 until numFrames / 2) {
-            result.bins!![i] *= scaler
         }
     }
 
