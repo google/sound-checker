@@ -59,6 +59,12 @@
         android:theme="@style/Theme.SoundChecker">
     </activity>
     <activity
+        android:name=".WavFilePlayerActivity"
+        android:exported="true"
+        android:label="@string/wav_player"
+        android:theme="@style/Theme.SoundChecker">
+    </activity>
+    <activity
         android:name=".ResonanceActivity"
         android:exported="true"
         android:label="@string/test_resonance"

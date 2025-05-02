@@ -24,6 +24,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
+import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioManager.OnAudioFocusChangeListener
 import android.net.Uri
@@ -41,12 +42,19 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -58,6 +66,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 import com.google.android.soundchecker.utils.AudioErrorCallback
@@ -85,6 +94,11 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
     protected lateinit var mAudioManager: AudioManager
 
     protected val mErrorCallback = FilePlaybackErrorCallback()
+
+    protected var mRequestedEncoding = mutableStateOf(AudioFormat.ENCODING_INVALID)
+    protected var mRequestedEncodingStr =
+        mutableStateOf(toFriendlyEncoding(mRequestedEncoding.value))
+    protected var mEncodingDropdownMenuEnabled = mutableStateOf(true)
 
     private lateinit var mFocusRequest: AudioFocusRequest
 
@@ -136,7 +150,8 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
                     Spacer(modifier = Modifier.width(8.dp))
 
                     mMsg.value = getSelectedFileUnplayableReason()
-                    mPlaybackButtonText.value = getString(R.string.start)
+                    mPlaybackButtonText.value = if (mIsPlaying) getString(R.string.stop) else
+                        getString(R.string.start)
                     val msg by mMsg
                     val playbackButtonText by mPlaybackButtonText
                     Button(
@@ -144,6 +159,50 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
                             enabled = msg.isEmpty()
                     ) {
                         Text(text = playbackButtonText)
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    if (getPotentialEncodings().isNotEmpty()) {
+                        Row {
+                            Text(text = "Encoding")
+                            Spacer(modifier = Modifier.padding(4.dp))
+                            var expanded by remember { mutableStateOf(false) }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .wrapContentSize(Alignment.CenterEnd)
+                            ) {
+                                // Create the dropdown menu
+                                DropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    getPotentialEncodings().forEachIndexed { _, encoding ->
+                                        DropdownMenuItem(
+                                            text = { Text(toFriendlyEncoding(encoding)) },
+                                            onClick = {
+                                                mRequestedEncoding.value = encoding
+                                                mRequestedEncodingStr.value =
+                                                    toFriendlyEncoding(mRequestedEncoding.value)
+                                                expanded = false
+                                            },
+                                            enabled = mEncodingDropdownMenuEnabled.value
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = mRequestedEncodingStr.value,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable(onClick = { expanded = true })
+                                        .background(
+                                            Color.Gray
+                                        )
+                                )
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -166,6 +225,7 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
                 .build()
         checkAndRequestNotificationPermission()
         val intent = Intent(this, FilePlayerService::class.java)
+        intent.action = FilePlayerService.ACTION_START_SERVICE
         startForegroundService(intent)
 
         registerReceiver(mBecomingNoisyReceiver,
@@ -181,7 +241,10 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
         unregisterReceiver(mBecomingNoisyReceiver)
         unregisterReceiver(mPlaybackStateChangedReceiver)
         mAudioManager.abandonAudioFocusRequest(mFocusRequest)
-        stopPlayback()
+        // Send the stop playback request via the message handler as it is
+        // originally started from there. For the ExoPlayer use case, it can
+        // only be stopped from the same thread.
+        sendStopPlaybackMsg(0)
         mMsgHandlerThread.quitSafely()
         val intent = Intent(this, FilePlayerService::class.java)
         intent.action = FilePlayerService.ACTION_STOP_SERVICE
@@ -229,6 +292,18 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
 
     open fun getStartDelayAfterRegainingAudioFocus(): Int {
         return 0
+    }
+
+    open fun getPotentialEncodings(): IntArray {
+        return IntArray(0)
+    }
+
+    fun toFriendlyEncoding(encoding: Int): String {
+        return when (encoding) {
+            AudioFormat.ENCODING_PCM_32BIT -> "PCM_I32"
+            AudioFormat.ENCODING_PCM_24BIT_PACKED -> "PCM_I24"
+            else -> "UNKNOWN"
+        }
     }
 
     private fun getSelectedFileName(): String {
@@ -301,6 +376,8 @@ open class BaseFilePlayerActivity : ComponentActivity(), OnAudioFocusChangeListe
                     mMsg.value = getSelectedFileUnplayableReason()
                     if (!mIsPlaying) {
                         mPlaybackButtonText.value = getString(R.string.start)
+                    } else {
+                        mPlaybackButtonText.value = getString(R.string.stop)
                     }
                 }
 
