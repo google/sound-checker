@@ -21,7 +21,7 @@ import android.os.Build
 import android.os.Bundle
 
 @TargetApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-class MQAFilePlayerActivity : ExoPlayerFilePlayerActivity() {
+class WavFilePlayerActivity : ExoPlayerFilePlayerActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

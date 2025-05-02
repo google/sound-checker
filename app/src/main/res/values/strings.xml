@@ -19,6 +19,7 @@
   <string name="app_name">SoundChecker</string>
   <string name="mqa_player">MQA File Player</string>
   <string name="dsd_player">DSD File Player</string>
+  <string name="wav_player">Wav File Bit-perfect Player</string>
   <string name="select">SELECT</string>
   <string name="start">START</string>
   <string name="stop">STOP</string>

@@ -17,6 +17,7 @@
 package com.google.android.soundchecker
 
 import android.annotation.TargetApi
+import android.media.AudioFormat
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -58,8 +59,15 @@ class DSDFilePlayerActivity : BitPerfectFilePlayerActivity() {
             Toast.makeText(
                 this, "Unable to get audio format for the selected file", Toast.LENGTH_LONG).show()
         }
+        Log.i(mTag, "requested encoding=${mRequestedEncoding.value}")
+        if (mRequestedEncoding.value != AudioFormat.ENCODING_INVALID) {
+            formatBuilder.setEncoding(mRequestedEncoding.value)
+        }
         val deviceFormat = mPlaybackConfigurationDiscover.onPlaybackConfigured(
             formatBuilder.build())
+        mRequestedEncoding.value = deviceFormat.encoding
+        mRequestedEncodingStr.value = toFriendlyEncoding(mRequestedEncoding.value)
+        Log.i(mTag, "Final encoding=${mRequestedEncodingStr.value}")
         val dopWrapper = DopWrapper(fileReader, deviceFormat.encoding)
         mAudioTrackSink = AudioTrackSink(null, -1, mErrorCallback)
         val audioTrackSink = mAudioTrackSink!!
@@ -68,10 +76,16 @@ class DSDFilePlayerActivity : BitPerfectFilePlayerActivity() {
         audioTrackSink.mChannelMask = deviceFormat.channelMask
         audioTrackSink.mSampleRate = deviceFormat.sampleRate
         audioTrackSink.start()
+        mEncodingDropdownMenuEnabled.value = false
     }
 
     override fun stopPlayback() {
         super.stopPlayback()
         mAudioTrackSink?.stop()
+        mEncodingDropdownMenuEnabled.value = true
+    }
+
+    override fun getPotentialEncodings(): IntArray {
+        return intArrayOf(AudioFormat.ENCODING_PCM_24BIT_PACKED, AudioFormat.ENCODING_PCM_32BIT)
     }
 }
