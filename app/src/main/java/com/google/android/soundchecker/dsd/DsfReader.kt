@@ -271,7 +271,12 @@ class DsfReader(inputStream: InputStream) {
             Log.e(TAG, "Unable to read sample rate")
             return false
         }
-        mAudioFormatBuilder.setSampleRate(sampleRate.toInt() / 16)
+        try {
+            mAudioFormatBuilder.setSampleRate(sampleRate.toInt() / 16)
+        } catch (e : Exception) {
+            Log.e(TAG, "Failed to set sample rate: ${sampleRate.toInt()}")
+            return false
+        }
         Log.i(TAG, "Sample rate:$sampleRate")
         length -= 4
         val bitsPerSample = readInteger(4)
