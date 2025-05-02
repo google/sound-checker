@@ -25,6 +25,6 @@ class MQAFilePlayerActivity : ExoPlayerFilePlayerActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        mTag = "WAVFilePlayerActivity"
+        mTag = "MQAFilePlayerActivity"
     }
 }

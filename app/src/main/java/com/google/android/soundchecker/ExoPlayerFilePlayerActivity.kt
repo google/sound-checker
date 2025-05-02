@@ -36,7 +36,7 @@ open class ExoPlayerFilePlayerActivity : BitPerfectFilePlayerActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        mTag = "MQAFilePlayerActivity"
+        mTag = "ExoPlayerFilePlayerActivity"
     }
 
     override fun startPlayback() {
