@@ -1122,10 +1122,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
             report.append("Supported Sample Rates: ${Arrays.toString(audioCapabilities
                 .supportedSampleRates)}\n")
             var supportedAACProfileStrings = emptyArray<String>()
-            if (mAvailableAacProfiles != null) {
-                for (aacProfile in mAvailableAacProfiles!!) {
-                    supportedAACProfileStrings += AAC_CODEC_PROFILES_TO_STRING[aacProfile!!].toString()
-                }
+            mAvailableAacProfiles?.forEach { aacProfile ->
+                supportedAACProfileStrings += AAC_CODEC_PROFILES_TO_STRING[aacProfile].toString()
             }
             report.append("Supported AAC Profiles: ${Arrays.toString(supportedAACProfileStrings)}\n")
         }

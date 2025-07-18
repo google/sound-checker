@@ -86,7 +86,7 @@ class AudioDecoderSource() : AudioSource() {
                 Log.d(TAG, "aacProfile: " + aacProfile)
                 inputFormat!!.setInteger(MediaFormat.KEY_AAC_PROFILE, aacProfile)
             } catch (e: Exception) {
-                Log.d(TAG, "failed to get/set aacProfile")
+                Log.e(TAG, "failed to get/set aacProfile")
             }
         }
 
