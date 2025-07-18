@@ -30,7 +30,8 @@ import kotlin.math.min
 
 class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate: Int,
                          channelCount: Int, val bitRate: Int, val flacCompressionLevel: Int,
-                         pcmEncoding: Int, val encodedDataMediaMuxer: MediaMuxer?) : AudioSource() {
+                         val aacProfile: Int, pcmEncoding: Int,
+                         val encodedDataMediaMuxer: MediaMuxer?) : AudioSource() {
     private var encoder: MediaCodec = MediaCodec.createByCodecName(codec)
     private val outputFormat: MediaFormat = MediaFormat.createAudioFormat(codecFormat, sampleRate,
             channelCount)
@@ -43,11 +44,15 @@ class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate:
 
     init {
         Log.i(TAG, "Creating AudioEncoderSource, codec=$codec, codecFormat=$codecFormat, " +
-                "sampleRate=$sampleRate, bitRate=$bitRate")
+                "sampleRate=$sampleRate, bitRate=$bitRate, flacCompressionLevel=$flacCompressionLevel, " +
+                "aacProfile=$aacProfile, pcmEncoding=$pcmEncoding")
         if (codecFormat == MediaFormat.MIMETYPE_AUDIO_FLAC) {
             outputFormat.setInteger(MediaFormat.KEY_FLAC_COMPRESSION_LEVEL, flacCompressionLevel)
         } else {
             outputFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
+        }
+        if (codecFormat == MediaFormat.MIMETYPE_AUDIO_AAC) {
+            outputFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, aacProfile)
         }
         outputFormat.setInteger(MediaFormat.KEY_PCM_ENCODING, pcmEncoding)
 
