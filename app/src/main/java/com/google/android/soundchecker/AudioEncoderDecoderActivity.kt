@@ -17,7 +17,6 @@
 package com.google.android.soundchecker
 
 import android.content.Intent
-import android.content.res.AssetManager
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
@@ -37,6 +36,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -72,8 +72,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzer
-import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzer.Companion
-.amplitudeToDecibels
+import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzer.Companion.amplitudeToDecibels
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerListener
 import com.google.android.soundchecker.mediacodec.AudioEncoderDecoderFramework
 import com.google.android.soundchecker.utils.WaveFileReader
@@ -90,7 +89,6 @@ import java.util.Arrays
 import java.util.Calendar
 import java.util.Date
 import kotlin.concurrent.thread
-import kotlin.math.roundToInt
 
 
 class AudioEncoderDecoderActivity : ComponentActivity() {
@@ -110,6 +108,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mSampleRateText = mutableStateOf("")
     private var mBitrateText = mutableStateOf("")
     private var mFlacCompressionLevelText = mutableStateOf("")
+    private var mAacProfileText = mutableStateOf("")
     private var mAudioCodecText = mutableStateOf("")
     private var mOutputFormatText = mutableStateOf("")
 
@@ -118,6 +117,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mSampleRate = 0;
     private var mBitrate = 0;
     private var mFlacCompressionLevel = 0;
+    private var mAacProfile = 0;
 
     private var mCodecStatus = mutableStateOf("")
     private var mAudioCodecs: MutableList<MediaCodecInfo>? = null
@@ -126,6 +126,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mAvailableOutputFormats: MutableList<String>? = null
     private var mAvailableSampleRates: MutableList<Int>? = null
     private var mAvailableBitRates: MutableList<Int>? = null
+    private var mAvailableAacProfiles: MutableList<Int>? = null
 
     private var mOutputFile: File? = null
     private var mEncodedFile: File? = null
@@ -287,6 +288,46 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                                         Color.Gray
                                     )
                             )
+                        }
+                    }
+                    if (mOutputFormatText.value == AUDIO_FORMAT_AAC) {
+                        Spacer(modifier = Modifier.padding(4.dp))
+                        Row {
+                            Text(text = "AAC profile")
+                            Spacer(modifier = Modifier.padding(4.dp))
+                            var expanded by remember { mutableStateOf(false) }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .wrapContentSize(Alignment.CenterEnd)
+                            ) {
+                                // Create the dropdown menu
+                                DropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    mAvailableAacProfiles!!.forEachIndexed { index, bin ->
+                                        DropdownMenuItem(
+                                            text = {Text(AAC_CODEC_PROFILES_TO_STRING[bin].toString())},
+                                            onClick = {
+                                                mAacProfile = mAvailableAacProfiles!![index]
+                                                mAacProfileText.value = AAC_CODEC_PROFILES_TO_STRING[mAacProfile].toString()
+                                                expanded = false
+                                            },
+                                            enabled = mSpinnersEnabled.value
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = mAacProfileText.value, modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable(onClick = { expanded = true })
+                                        .background(
+                                            Color.Gray
+                                        )
+                                )
+                            }
                         }
                     }
                     if (mInputFile == null) {
@@ -664,6 +705,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     CHANNEL_COUNT,
                     mBitrate,
                     mFlacCompressionLevel,
+                    mAacProfile,
                     AUDIO_FORMAT,
                     mPlaySineSweep.value,
                     mOutputFile!!,
@@ -682,6 +724,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     mInputFileNumChannels,
                     mBitrate,
                     mFlacCompressionLevel,
+                    mAacProfile,
                     AUDIO_FORMAT,
                     mPlaySineSweep.value,
                     mOutputFile!!,
@@ -981,7 +1024,32 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
 
     private fun updateSelectedFormat() {
         val mediaCodecInfo = mSelectedCodec!!
-        val type = mOutputFormatText.value
+        var type = mOutputFormatText.value
+
+        mAvailableAacProfiles = mutableListOf<Int>()
+        for (aacProfile in AAC_CODEC_PROFILES_TO_STRING) {
+            val aacFormat = MediaFormat()
+
+            aacFormat.setString(MediaFormat.KEY_MIME, type)
+            aacFormat.setInteger(
+                MediaFormat.KEY_AAC_PROFILE,
+                aacProfile.key
+            )
+
+            val codecCapabilities = mediaCodecInfo.getCapabilitiesForType(type)
+            if (codecCapabilities.isFormatSupported(aacFormat)) {
+                mAvailableAacProfiles!!.add(aacProfile.key)
+            }
+        }
+        if (mAvailableAacProfiles!!.isNotEmpty()) {
+            mAacProfile = mAvailableAacProfiles!![0]
+            mAacProfileText.value = AAC_CODEC_PROFILES_TO_STRING[mAvailableAacProfiles!![0]].toString()
+        }
+        updateSelectedCodecType(type)
+    }
+
+    private fun updateSelectedCodecType(type: String) {
+        val mediaCodecInfo = mSelectedCodec!!
         val codecCapabilities = mediaCodecInfo.getCapabilitiesForType(type)
         val audioCapabilities = codecCapabilities.audioCapabilities
         if (audioCapabilities.supportedSampleRates != null) {
@@ -1053,6 +1121,13 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                 .supportedSampleRateRanges)}\n")
             report.append("Supported Sample Rates: ${Arrays.toString(audioCapabilities
                 .supportedSampleRates)}\n")
+            var supportedAACProfileStrings = emptyArray<String>()
+            if (mAvailableAacProfiles != null) {
+                for (aacProfile in mAvailableAacProfiles!!) {
+                    supportedAACProfileStrings += AAC_CODEC_PROFILES_TO_STRING[aacProfile!!].toString()
+                }
+            }
+            report.append("Supported AAC Profiles: ${Arrays.toString(supportedAACProfileStrings)}\n")
         }
         report.append("Is Encoder: ${mediaCodecInfo.isEncoder}")
         mCodecStatus.value = report.toString()
@@ -1069,6 +1144,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
 
         private const val FFT_SIZE = 1024
         private val AUDIO_FORMAT_FLAC = MediaFormat.MIMETYPE_AUDIO_FLAC
+        private val AUDIO_FORMAT_AAC = MediaFormat.MIMETYPE_AUDIO_AAC
         private val DEFAULT_SAMPLE_RATES = listOf(8000, 16000, 32000, 44100, 48000, 96000, 192000)
         private val CHANNEL_COUNT = 1
         private val DEFAULT_BITRATES = listOf(6000, 10000, 20000, 64000, 128000)
@@ -1091,6 +1167,20 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
             MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4 to "audio/mp4",
             MediaMuxer.OutputFormat.MUXER_OUTPUT_3GPP to "audio/3gpp",
             MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG to "audio/ogg",
+        )
+        private val AAC_CODEC_PROFILES_TO_STRING = mapOf(
+            MediaCodecInfo.CodecProfileLevel.AACObjectLC to "AACObjectLC",
+            MediaCodecInfo.CodecProfileLevel.AACObjectLD to "AACObjectLD",
+            MediaCodecInfo.CodecProfileLevel.AACObjectHE to "AACObjectHE",
+            MediaCodecInfo.CodecProfileLevel.AACObjectHE_PS to "AACObjectHE_PS",
+            MediaCodecInfo.CodecProfileLevel.AACObjectELD to "AACObjectELD",
+            MediaCodecInfo.CodecProfileLevel.AACObjectERLC to "AACObjectERLC",
+            MediaCodecInfo.CodecProfileLevel.AACObjectERScalable to "AACObjectERScalable",
+            MediaCodecInfo.CodecProfileLevel.AACObjectLTP to "AACObjectLTP",
+            MediaCodecInfo.CodecProfileLevel.AACObjectMain to "AACObjectMain",
+            MediaCodecInfo.CodecProfileLevel.AACObjectSSR to "AACObjectSSR",
+            MediaCodecInfo.CodecProfileLevel.AACObjectScalable to "AACObjectScalable",
+            MediaCodecInfo.CodecProfileLevel.AACObjectXHE to "AACObjectXHE",
         )
 
         private const val MIN_DECIBELS = -120F

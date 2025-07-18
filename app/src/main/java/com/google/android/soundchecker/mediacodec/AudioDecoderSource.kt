@@ -80,6 +80,15 @@ class AudioDecoderSource() : AudioSource() {
             inputFormat!!.setInteger(MediaFormat.KEY_BIT_RATE, format.getInteger(MediaFormat
                 .KEY_BIT_RATE))
         }
+        if (format.getString(MediaFormat.KEY_MIME) == MediaFormat.MIMETYPE_AUDIO_AAC) {
+            try {
+                var aacProfile = format.getInteger(MediaFormat.KEY_AAC_PROFILE)
+                Log.d(TAG, "aacProfile: " + aacProfile)
+                inputFormat!!.setInteger(MediaFormat.KEY_AAC_PROFILE, aacProfile)
+            } catch (e: Exception) {
+                Log.d(TAG, "failed to get/set aacProfile")
+            }
+        }
 
         // Check actual encoding - this may or may not exist
         try {
