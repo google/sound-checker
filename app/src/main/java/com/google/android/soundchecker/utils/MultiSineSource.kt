@@ -19,6 +19,11 @@ package com.google.android.soundchecker.utils
 import android.media.MediaCodec
 import android.util.Log
 
+/**
+ * Audio source that combines multiple sine sources
+ * When pulling from this source, the sine sources will be combined to the first channel.
+ * The rest of the channels will not be filled.
+ */
 class MultiSineSource : AudioSource() {
 
     private var mSineSources = ArrayList<SineSource>()

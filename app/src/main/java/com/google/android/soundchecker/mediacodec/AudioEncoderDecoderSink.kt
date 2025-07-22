@@ -100,7 +100,7 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
                     outputBitsPerSample)
             }
             waveFileWriter.write(floatArray, 0, bufferInfo.size / mPcmEncoding.bytesPerSample())
-            Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
+            //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
             Log.d(TAG, "fundamental bin: " + Arrays.toString(mFundamentalBins))
             Log.d(TAG, "mUseAnalyzer: " + mUseAnalyzer)
             Log.d(TAG, "outputSize: " + bufferInfo.size)
