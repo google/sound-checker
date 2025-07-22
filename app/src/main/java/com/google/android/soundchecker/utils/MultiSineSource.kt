@@ -20,13 +20,13 @@ import android.media.MediaCodec
 import android.util.Log
 
 /**
- * Audio source that combines multiple sine sources
- * When pulling from this source, the sine sources will be combined to the first channel.
+ * Audio source that mixes multiple sine sources
+ * When pulling from this source, the sine sources will be mixed to the first channel.
  * The rest of the channels will not be filled.
  */
 class MultiSineSource : AudioSource() {
 
-    private var mSineSources = ArrayList<SineSource>()
+    private val mSineSources = ArrayList<SineSource>()
 
     private var mTemporaryBuffer: FloatArray? = null
 

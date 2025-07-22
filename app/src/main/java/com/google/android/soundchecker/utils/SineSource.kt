@@ -120,10 +120,11 @@ class SineSource : AudioSource() {
         // copy data from the first channel to the rest of the channels
         for (channel in 1 until getChannelCount()) {
             for (frame in 0 until numFrames) {
-                buffer[channel + frame * mChannelCount] += buffer[frame * mChannelCount]
+                val frameIndexToCopyFrom = frame * mChannelCount
+                buffer[channel + frameIndexToCopyFrom] += buffer[frameIndexToCopyFrom]
             }
         }
-        Log.d(TAG, "pull: " + Arrays.toString(buffer))
+        //Log.d(TAG, "pull: " + Arrays.toString(buffer))
         return numFrames
     }
 

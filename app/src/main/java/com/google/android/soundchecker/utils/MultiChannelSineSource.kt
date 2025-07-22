@@ -24,7 +24,7 @@ import android.media.MediaCodec
  */
 class MultiChannelSineSource : AudioSource() {
 
-    private var mSineSources = ArrayList<SineSource>()
+    private val mSineSources = ArrayList<SineSource>()
 
     fun addPartial(min: Float, current: Float, max: Float, enableSineSweep: Boolean = false) {
         val sineSource = SineSource()
