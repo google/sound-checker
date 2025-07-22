@@ -30,7 +30,7 @@ class WaveFileSource : AudioSource() {
     override fun pull(buffer: ByteArray, numFrames: Int): MediaCodec.BufferInfo {
         val floatArray = FloatArray(numFrames * getChannelCount())
         val framesRead = pull(floatArray, numFrames)
-        //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
+        Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
         floatArrayToByteArray(floatArray, buffer)
         //Log.d(TAG, "byteArray: " + Arrays.toString(buffer))
         val bufferInfo = MediaCodec.BufferInfo()

@@ -18,7 +18,6 @@ package com.google.android.soundchecker.utils
 
 import android.media.MediaCodec
 import android.util.Log
-import com.google.android.soundchecker.mediacodec.AudioEncoderSource
 import java.util.Arrays
 import kotlin.math.sin
 
@@ -112,14 +111,19 @@ class SineSource : AudioSource() {
         floatArrayToI16ByteArray(floatArray, buffer)
         //Log.d(TAG, "byteArray: " + Arrays.toString(buffer))
         val bufferInfo = MediaCodec.BufferInfo()
-        bufferInfo.set(0, numBytes / 2, 0, 0)
+        bufferInfo.set(0, numBytes / 2 / getChannelCount(), 0, 0)
         return bufferInfo
     }
 
     override fun pull(buffer: FloatArray, numFrames: Int): Int {
-        for (i in 0 until getChannelCount()) {
-            render(buffer, 0, getChannelCount(), numFrames)
+        render(buffer, 0, getChannelCount(), numFrames)
+        // copy data from the first channel to the rest of the channels
+        for (channel in 1 until getChannelCount()) {
+            for (frame in 0 until numFrames) {
+                buffer[channel + frame * mChannelCount] += buffer[frame * mChannelCount]
+            }
         }
+        Log.d(TAG, "pull: " + Arrays.toString(buffer))
         return numFrames
     }
 
