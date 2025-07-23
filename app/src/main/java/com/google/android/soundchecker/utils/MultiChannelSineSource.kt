@@ -26,8 +26,9 @@ class MultiChannelSineSource : AudioSource() {
 
     private val mSineSources = ArrayList<SineSource>()
 
-    fun addPartial(min: Float, current: Float, max: Float, enableSineSweep: Boolean = false) {
+    fun addPartial(min: Float, current: Float, max: Float, sampleRate: Int, enableSineSweep: Boolean = false) {
         val sineSource = SineSource()
+        sineSource.mSampleRate = sampleRate
         sineSource.getFrequencyPort().mMinimum = min
         sineSource.getFrequencyPort().mMaximum = max
         sineSource.getFrequencyPort().set(current)

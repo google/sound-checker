@@ -52,16 +52,15 @@ class AudioEncoderDecoderFramework (codec: String, codecFormat: String, sampleRa
             mWaveFileSource.mChannelCount = channelCount
             mAudioEncoderSource.setSource(mWaveFileSource)
         } else {
-            mSineSource.mSampleRate = sampleRate
             mSineSource.mChannelCount = channelCount
             for (channel in 0 until channelCount) {
                 if (usePitchSweep) {
-                    mSineSource.addPartial(sampleRate / 1000.0F, sampleRate * (channel + 1) / 10.0F, sampleRate / 2.3F, true)
+                    mSineSource.addPartial(sampleRate / 1000.0F, sampleRate * (channel + 1) / 10.0F, sampleRate / 2.3F, sampleRate, true)
                     mSineSource.getAmplitudePort(channel).set(0.5f)
                 } else {
                     val sineFrequency = harmonicAnalyzerSink.calculateBinFrequency(fundamentalBins[channel]).toFloat()
                     mSineFrequencies.add(sineFrequency)
-                    mSineSource.addPartial(sampleRate / 1000.0F, sineFrequency, sampleRate / 2.3F, false)
+                    mSineSource.addPartial(sampleRate / 1000.0F, sineFrequency, sampleRate / 2.3F, sampleRate, false)
                     mSineSource.getAmplitudePort(channel).set(0.5f)
                 }
             }
