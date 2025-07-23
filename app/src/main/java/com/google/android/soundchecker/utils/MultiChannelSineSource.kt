@@ -68,6 +68,7 @@ class MultiChannelSineSource : AudioSource() {
 
     // Pull I16 bytes
     override fun pull(numBytes: Int, buffer: ByteArray): MediaCodec.BufferInfo {
+        // TODO: Consolidate with similar code in SineSource
         val floatArray = FloatArray(numBytes * Short.SIZE_BYTES / Float.SIZE_BYTES)
         pull(floatArray, numBytes * Short.SIZE_BYTES / Float.SIZE_BYTES / getChannelCount())
         floatArrayToI16ByteArray(floatArray, buffer)
