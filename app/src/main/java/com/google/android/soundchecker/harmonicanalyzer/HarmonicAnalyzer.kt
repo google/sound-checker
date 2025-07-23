@@ -41,7 +41,6 @@ class HarmonicAnalyzer {
         var bins: FloatArray? = null
         var buffer: FloatArray? = null
         var endOfStream = false
-        var numOfChannels = 1
     }
 
     var peakMargin: Int

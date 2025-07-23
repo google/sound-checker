@@ -26,7 +26,6 @@ import android.media.MediaCodecList
 import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.OpenableColumns
@@ -36,7 +35,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -100,12 +98,13 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
 
     private var mParam = mutableStateOf("")
     private var mStatus = mutableStateOf("")
-    private var mBins: FloatArray? = null
-    private var mSpectogram: MutableList<FloatArray?>? = null
+    private var mFrequencyBins: MutableList<FloatArray?>? = null
+    private var mSpectrograms: MutableList<MutableList<FloatArray?>?>? = null
     private var mWaveforms: MutableList<FloatArray?>? = null
 
     private var mSpinnersEnabled = mutableStateOf(true)
     private var mSampleRateText = mutableStateOf("")
+    private var mChannelCountText = mutableStateOf("")
     private var mBitrateText = mutableStateOf("")
     private var mFlacCompressionLevelText = mutableStateOf("")
     private var mAacProfileText = mutableStateOf("")
@@ -115,6 +114,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mAudioEncoderDecoderFramework: AudioEncoderDecoderFramework? = null
     private val mListener: MyHarmonicAnalyzerListener = MyHarmonicAnalyzerListener()
     private var mSampleRate = 0;
+    private var mChannelCount = 0;
     private var mBitrate = 0;
     private var mFlacCompressionLevel = 0;
     private var mAacProfile = 0;
@@ -125,6 +125,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mSelectedCodec: MediaCodecInfo? = null
     private var mAvailableOutputFormats: MutableList<String>? = null
     private var mAvailableSampleRates: MutableList<Int>? = null
+    private var mAvailableChannelCounts: MutableList<Int>? = null
     private var mAvailableBitRates: MutableList<Int>? = null
     private var mAvailableAacProfiles: MutableList<Int>? = null
 
@@ -370,6 +371,45 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                                 )
                             }
                         }
+                        Spacer(modifier = Modifier.padding(4.dp))
+                        Row {
+                            Text(text = "Channel Count")
+                            Spacer(modifier = Modifier.padding(4.dp))
+                            var expanded by remember { mutableStateOf(false) }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .wrapContentSize(Alignment.CenterEnd)
+                            ) {
+                                // Create the dropdown menu
+                                DropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    mAvailableChannelCounts!!.forEachIndexed { index, bin ->
+                                        DropdownMenuItem(
+                                            text = { Text(bin.toString()) },
+                                            onClick = {
+                                                mChannelCount = mAvailableChannelCounts!![index]
+                                                mChannelCountText.value =
+                                                    mAvailableChannelCounts!![index].toString()
+                                                expanded = false
+                                            },
+                                            enabled = mSpinnersEnabled.value
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = mChannelCountText.value, modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable(onClick = { expanded = true })
+                                        .background(
+                                            Color.Gray
+                                        )
+                                )
+                            }
+                        }
                     }
                     if (mOutputFormatText.value != AUDIO_FORMAT_FLAC) {
                         Spacer(modifier = Modifier.padding(4.dp))
@@ -534,35 +574,43 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                             channelNumber++
                         }
                     }
-                    if (mBins != null) {
-                        Spacer(modifier = Modifier.padding(4.dp))
-                        Text(text = "Frequency bins")
-                        WaveformDisplay(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(WAVEFORM_HEIGHT.dp)
-                                .border(1.dp, Color.Gray)
-                                .background(Color.LightGray)
-                                .padding(horizontal = 4.dp, vertical = 4.dp),
-                            yValues = mBins,
-                            yMin = MIN_DECIBELS,
-                            yMax = 0.0f
-                        )
+                    if (mFrequencyBins != null) {
+                        var channelNumber = 1
+                        for (bins in mFrequencyBins!!) {
+                            Spacer(modifier = Modifier.padding(4.dp))
+                            Text(text = "Frequency bins for channel #$channelNumber")
+                            WaveformDisplay(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(WAVEFORM_HEIGHT.dp)
+                                    .border(1.dp, Color.Gray)
+                                    .background(Color.LightGray)
+                                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                                yValues = bins,
+                                yMin = MIN_DECIBELS,
+                                yMax = 0.0f,
+                            )
+                            channelNumber++
+                        }
                     }
-                    if (mSpectogram != null) {
-                        Spacer(modifier = Modifier.padding(4.dp))
-                        Text(text = "Spectogram")
-                        SpectogramDisplay(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(WAVEFORM_HEIGHT.dp)
-                                .border(1.dp, Color.Gray)
-                                .background(Color.LightGray)
-                                .padding(horizontal = 4.dp, vertical = 4.dp),
-                            values = mSpectogram,
-                            min = MIN_DECIBELS,
-                            max = 0.0f
-                        )
+                    if (mSpectrograms != null) {
+                        var channelNumber = 1
+                        for (spectrogram in mSpectrograms!!) {
+                            Spacer(modifier = Modifier.padding(4.dp))
+                            Text(text = "Spectrogram for channel #$channelNumber")
+                            SpectogramDisplay(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(WAVEFORM_HEIGHT.dp)
+                                    .border(1.dp, Color.Gray)
+                                    .background(Color.LightGray)
+                                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                                values = spectrogram,
+                                min = MIN_DECIBELS,
+                                max = 0.0f,
+                            )
+                            channelNumber++
+                        }
                     }
                 }
             }
@@ -702,7 +750,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     mAudioCodecText.value,
                     mOutputFormatText.value,
                     mSampleRate,
-                    CHANNEL_COUNT,
+                    mChannelCount,
                     mBitrate,
                     mFlacCompressionLevel,
                     mAacProfile,
@@ -754,8 +802,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         }
 
         mWaveforms = null
-        mBins = null
-        mSpectogram = null
+        mFrequencyBins = null
+        mSpectrograms = null
         mStatus.value = ""
         mParam.value = ""
 
@@ -768,7 +816,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         }
         harmonicAnalyzerSink.mFftSize = FFT_SIZE
         if (mPlaySineSweep.value) {
-            harmonicAnalyzerSink.mFundamentalBin = 0
+            harmonicAnalyzerSink.mFundamentalBins = IntArray(mChannelCount)
         }
 
         mAudioEncoderDecoderFramework?.start()
@@ -795,84 +843,104 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     }
 
     private inner class MyHarmonicAnalyzerListener : HarmonicAnalyzerListener {
-        override fun onMeasurement(analysisCount: Int, result: HarmonicAnalyzer.Result) {
-            val numberOfSamples = result.buffer!!.size
-            val numberOfChannels = result.numOfChannels
+        override fun onMeasurement(analysisCount: Int, results: ArrayList<HarmonicAnalyzer.Result>) {
+            val numberOfChannels = results.size
+            val numberOfSamples = results[0].buffer!!.size
             val numberOfFrames = numberOfSamples / numberOfChannels
             mWaveforms = mutableListOf<FloatArray?>()
             for (channel in 0 until numberOfChannels) {
-                val waveform = FloatArray(numberOfFrames)
-                for (frame in 0 until numberOfFrames) {
-                    waveform[frame] = result.buffer!![channel + frame * numberOfChannels]
-                }
-                mWaveforms!!.add(waveform)
+                mWaveforms!!.add(results[channel].buffer)
             }
             if (mInputFile != null) {
-                inputFileOnMeasurement(analysisCount, result)
+                inputFileOnMeasurement(analysisCount, results)
             } else if (mPlaySineSweep.value) {
-                sineSweepOnMeasurement(analysisCount, result)
+                sineSweepOnMeasurement(analysisCount, results)
             } else {
-                sineOnMeasurement(analysisCount, result)
+                sineOnMeasurement(analysisCount, results)
             }
 
-            mParam.value = String.format("Decoded Sample Rate = %d Hz\nFFT size = %d\nFundamental Bin = %d",
+            mParam.value = String.format("Decoded Sample Rate = %d Hz\nFFT size = %d\nFundamental Bins = %s",
                 mAudioEncoderDecoderFramework?.harmonicAnalyzerSink?.mSampleRate,
                 mAudioEncoderDecoderFramework?.harmonicAnalyzerSink?.mFftSize,
-                mAudioEncoderDecoderFramework?.harmonicAnalyzerSink?.mFundamentalBin)
+                Arrays.toString(mAudioEncoderDecoderFramework?.harmonicAnalyzerSink?.mFundamentalBins))
 
-            if (result.endOfStream) {
+            if (results[0].endOfStream) {
                 onStopTest()
             }
         }
     }
 
-    private fun inputFileOnMeasurement(analysisCount: Int, result: HarmonicAnalyzer.Result) {
+    private fun inputFileOnMeasurement(analysisCount: Int, results: ArrayList<HarmonicAnalyzer.Result>) {
         mStatus.value = """
                 analysis #%04d
             """.trimIndent().format(
             analysisCount)
     }
 
-    private fun sineOnMeasurement(analysisCount: Int, result: HarmonicAnalyzer.Result) {
+    private fun sineOnMeasurement(analysisCount: Int, results: ArrayList<HarmonicAnalyzer.Result>) {
+        val totalHarmomicDistortionArray = ArrayList<String>(results.size)
+        val totalHarmomicDistortionPlusNoiseArray = ArrayList<String>(results.size)
+        val signalNoiseRatioDBArray = ArrayList<String>(results.size)
+        val peakAmplitudeArray = ArrayList<String>(results.size)
+        for (result in results) {
+            totalHarmomicDistortionArray.add("%6.4f%c".format(result.totalHarmonicDistortion * 100.0, '%'))
+            totalHarmomicDistortionPlusNoiseArray.add("%6.4f%c".format(result.totalHarmonicDistortionPlusNoise * 100.0, '%'))
+            signalNoiseRatioDBArray.add("%6.2f dB".format(result.signalNoiseRatioDB))
+            peakAmplitudeArray.add("%6.2f dB".format(amplitudeToDecibels(result.peakAmplitude)))
+        }
         mStatus.value = """
                 analysis #%04d
-                THD   = %6.4f%c
-                THD+N = %6.4f%c
-                SNR   = %6.2f dB
-                nPeak  = %6.2f dB
+                THD   = [%s]
+                THD+N = [%s]
+                SNR   = [%s]
+                nPeak = [%s]
             """.trimIndent().format(
             analysisCount,
-            result.totalHarmonicDistortion * 100.0, '%',
-            result.totalHarmonicDistortionPlusNoise * 100.0, '%',
-            result.signalNoiseRatioDB,
-            HarmonicAnalyzer.amplitudeToDecibels(result.peakAmplitude))
-        val bins = result.bins
-        mBins = FloatArray(bins!!.size)
-        for (bucket in 0 until (bins.size)) {
-            mBins!![bucket] = amplitudeToDecibels(bins[bucket]
-                .toDouble()).toFloat()
+            totalHarmomicDistortionArray.joinToString(),
+            totalHarmomicDistortionPlusNoiseArray.joinToString(),
+            signalNoiseRatioDBArray.joinToString(),
+            peakAmplitudeArray.joinToString())
+        mFrequencyBins = mutableListOf<FloatArray?>()
+        for (channel in 0 until results.size) {
+            val bins = results[channel].bins
+            val decibelBins = FloatArray(bins!!.size)
+            for (bucket in 0 until (bins.size)) {
+                decibelBins[bucket] = amplitudeToDecibels(bins[bucket]
+                    .toDouble()).toFloat()
+            }
+            mFrequencyBins!!.add(decibelBins)
         }
     }
 
-    private fun sineSweepOnMeasurement(analysisCount: Int, result: HarmonicAnalyzer.Result) {
-        if (mSpectogram == null) {
-            mSpectogram = mutableListOf<FloatArray?>()
+    private fun sineSweepOnMeasurement(analysisCount: Int, results: ArrayList<HarmonicAnalyzer.Result>) {
+        if (mSpectrograms == null) {
+            mSpectrograms = mutableListOf<MutableList<FloatArray?>?>(mutableListOf<FloatArray?>())
+            for (channel in 0 until results.size) {
+                mSpectrograms!!.add(mutableListOf<FloatArray?>())
+            }
         }
-        var bins = remapToLog(result.bins!!, WAVEFORM_HEIGHT)
-        for (i in 0 until (bins.size)) {
-            bins[i] = amplitudeToDecibels(bins[i].toDouble()).toFloat()
+        for (channel in 0 until results.size) {
+            var bins = remapToLog(results[channel].bins!!, WAVEFORM_HEIGHT)
+            for (i in 0 until (bins.size)) {
+                bins[i] = amplitudeToDecibels(bins[i].toDouble()).toFloat()
+            }
+            mSpectrograms!![channel]!!.add(bins)
+            if (mSpectrograms!![channel]!!.size > SPECTOGRAM_WIDTH) {
+                mSpectrograms!![channel]!!.removeAt(0)
+            }
+        }
+
+        val peakAmplitudeArray = ArrayList<String>(results.size)
+        for (result in results) {
+            peakAmplitudeArray.add("%6.2fdB".format(amplitudeToDecibels(result.peakAmplitude)))
         }
         mStatus.value = """
                     analysis #%04d
-                    nPeak  = %6.2f dB
+                    nPeak  = [%s]
                 """.trimIndent().format(
             analysisCount,
-            amplitudeToDecibels(result.peakAmplitude)
+            peakAmplitudeArray.joinToString()
         )
-        mSpectogram!!.add(bins)
-        if (mSpectogram!!.size > SPECTOGRAM_WIDTH) {
-            mSpectogram!!.removeAt(0)
-        }
     }
 
     private fun getTimestampString(): String? {
@@ -1069,6 +1137,12 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     .upper)
             }
         }
+        mAvailableChannelCounts = mutableListOf<Int>()
+        for (channelCountRange in audioCapabilities.inputChannelCountRanges) {
+            for (channelCount in channelCountRange.lower..channelCountRange.upper) {
+                mAvailableChannelCounts!!.add(channelCount)
+            }
+        }
         mAvailableBitRates = mutableListOf<Int>()
         mAvailableBitRates!!.add(audioCapabilities.bitrateRange.lower)
         for (bitRate in DEFAULT_BITRATES) {
@@ -1088,6 +1162,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private fun updateCodecSpecificSpinnerValues() {
         mSampleRate = mAvailableSampleRates!![0]
         mSampleRateText.value = mAvailableSampleRates!![0].toString()
+        mChannelCount = mAvailableChannelCounts!![0]
+        mChannelCountText.value = mAvailableChannelCounts!![0].toString()
         mBitrate = mAvailableBitRates!![0]
         mBitrateText.value = mAvailableBitRates!![0].toString()
         mFlacCompressionLevel = FLAC_COMPRESSION_LEVELS[0]
@@ -1144,7 +1220,6 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         private val AUDIO_FORMAT_FLAC = MediaFormat.MIMETYPE_AUDIO_FLAC
         private val AUDIO_FORMAT_AAC = MediaFormat.MIMETYPE_AUDIO_AAC
         private val DEFAULT_SAMPLE_RATES = listOf(8000, 16000, 32000, 44100, 48000, 96000, 192000)
-        private val CHANNEL_COUNT = 1
         private val DEFAULT_BITRATES = listOf(6000, 10000, 20000, 64000, 128000)
         private val FLAC_COMPRESSION_LEVELS = (0..8).toList()
         private val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_FLOAT

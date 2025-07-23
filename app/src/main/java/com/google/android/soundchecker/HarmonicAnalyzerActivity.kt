@@ -390,7 +390,8 @@ class HarmonicAnalyzerActivity : ComponentActivity() {
     }
 
     private inner class MyHarmonicAnalyzerListener : HarmonicAnalyzerListener {
-        override fun onMeasurement(analysisCount: Int, result: HarmonicAnalyzer.Result) {
+        override fun onMeasurement(analysisCount: Int, results: ArrayList<HarmonicAnalyzer.Result>) {
+            val result = results[0] // Only one channel for now
             mSumPeakAmplitude += result.peakAmplitude
             mSumTHD += result.totalHarmonicDistortion
             mSumTHDN += result.totalHarmonicDistortionPlusNoise

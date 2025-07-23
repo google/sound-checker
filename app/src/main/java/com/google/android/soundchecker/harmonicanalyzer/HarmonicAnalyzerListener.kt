@@ -17,5 +17,5 @@
 package com.google.android.soundchecker.harmonicanalyzer
 
 interface HarmonicAnalyzerListener {
-    fun onMeasurement(analysisCount: Int, result: HarmonicAnalyzer.Result)
+    fun onMeasurement(analysisCount: Int, results: ArrayList<HarmonicAnalyzer.Result>)
 }

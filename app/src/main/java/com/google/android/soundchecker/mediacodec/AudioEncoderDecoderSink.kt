@@ -33,6 +33,7 @@ import com.google.android.soundchecker.utils.bytesPerSample
 import com.google.android.soundchecker.utils.i16ByteArrayToFloatArray
 import java.io.File
 import java.io.FileOutputStream
+import java.util.Arrays
 
 class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
     private var mAudioSource: AudioSource? = null
@@ -41,13 +42,14 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
     private var mPcmEncoding = 0
 
     var mFftSize = 1024 // must be power of 2
-    var mFundamentalBin = calculateNearestBin(TARGET_FREQUENCY)
+    var mFundamentalBins : IntArray? = null
     var mUseAnalyzer = false
     var mUseFundamentalBin = false
     private val mListeners = ArrayList<HarmonicAnalyzerListener>()
     private val mAnalyzer = HarmonicAnalyzer()
     private val mFileOutputStream = FileOutputStream(outputFile)
     private var mOutputFormat : MediaFormat? = null
+    private var mChannelArray = FloatArray(mFftSize)
 
     override fun setSource(source: AudioSource?) {
         mAudioSource = source
@@ -60,7 +62,7 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
             }
         }
         if (mBuffer == null) {
-            mBuffer = ByteArray(mFftSize * 4)
+            mBuffer = ByteArray(mFftSize * 4 * mChannelCount)
         }
         mThread!!.start()
     }
@@ -84,7 +86,7 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
             bufferInfo = audioSource.pull(buffer.size, buffer)
             //Log.d(TAG, "bufferSize: " + buffer.size)
             //Log.d(TAG, "buffer: " + Arrays.toString(buffer))
-            val floatArray = FloatArray(mFftSize)
+            val floatArray = FloatArray(mFftSize * mChannelCount)
             //Log.d(TAG, "floatArray indices: " + floatArray.indices)
             if (mPcmEncoding == AudioFormat.ENCODING_PCM_FLOAT) {
                 byteArrayToFloatArray(buffer, floatArray)
@@ -99,32 +101,38 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
             }
             waveFileWriter.write(floatArray, 0, bufferInfo.size / mPcmEncoding.bytesPerSample())
             //Log.d(TAG, "floatArray: " + Arrays.toString(floatArray))
-            Log.d(TAG, "fundamental bin: " + mFundamentalBin)
+            Log.d(TAG, "fundamental bin: " + Arrays.toString(mFundamentalBins))
             Log.d(TAG, "mUseAnalyzer: " + mUseAnalyzer)
             Log.d(TAG, "outputSize: " + bufferInfo.size)
             Log.d(TAG, "buffer.size: " + buffer.size)
+            val results = ArrayList<HarmonicAnalyzer.Result>()
             // Analyze it
             var result : HarmonicAnalyzer.Result = HarmonicAnalyzer.Result()
-            if (mUseAnalyzer) {
-                var bin = mFundamentalBin
-                if (!mUseFundamentalBin) {
-                    bin = 0 // Skip THD and SNR calculations when the input is not a sine wave
+            for (channel in 0 until mChannelCount) {
+                for (i in 0 until mFftSize) {
+                    mChannelArray[i] = floatArray[i * mChannelCount + channel]
                 }
-                result = mAnalyzer.analyze(floatArray, mFftSize, bin)
-            } else {
-                result.buffer = floatArray
-                result.endOfStream = (bufferInfo.size != buffer.size)
-                result.numOfChannels = mChannelCount
+                if (mUseAnalyzer) {
+                    var bin = mFundamentalBins!![channel]
+                    if (!mUseFundamentalBin) {
+                        bin = 0 // Skip THD and SNR calculations when the input is not a sine wave
+                    }
+                    result = mAnalyzer.analyze(mChannelArray, mFftSize, bin)
+                } else {
+                    result.buffer = mChannelArray
+                    result.endOfStream = (bufferInfo.size != buffer.size)
+                }
+                results.add(result)
             }
-            fireListeners(count++, result)
+            fireListeners(count++, results)
         }
         mFileOutputStream.flush()
         mFileOutputStream.close()
     }
 
-    private fun fireListeners(count: Int, result: HarmonicAnalyzer.Result) {
+    private fun fireListeners(count: Int, results: ArrayList<HarmonicAnalyzer.Result>) {
         for (listener in mListeners) {
-            listener.onMeasurement(count, result)
+            listener.onMeasurement(count, results)
         }
     }
 
@@ -142,17 +150,20 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
 
     fun setOutputPcmEncoding(pcmEncoding: Int) {
         mPcmEncoding = pcmEncoding
-        mBuffer = ByteArray(mFftSize * mPcmEncoding.bytesPerSample())
+        mBuffer = ByteArray(mFftSize * mPcmEncoding.bytesPerSample() * mChannelCount)
     }
 
     fun setOutputFormat(format: MediaFormat) {
         mOutputFormat = format
         mSampleRate = mOutputFormat!!.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-        mFundamentalBin = calculateNearestBin(TARGET_FREQUENCY)
+        mFundamentalBins = IntArray(mChannelCount)
+        for (channel in 0 until mChannelCount) {
+            mFundamentalBins!![channel] = calculateNearestBin(TARGET_FREQUENCY * (channel + 1))
+        }
     }
 
     companion object {
         private const val TAG = "AudioEncoderDecoderSink"
-        const val TARGET_FREQUENCY = 1000.0
+        const val TARGET_FREQUENCY = 500.0
     }
 }

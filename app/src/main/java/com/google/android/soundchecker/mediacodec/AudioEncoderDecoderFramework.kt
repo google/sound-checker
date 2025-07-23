@@ -18,6 +18,9 @@ package com.google.android.soundchecker.mediacodec
 
 import android.media.MediaMuxer
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzerListener
+import com.google.android.soundchecker.mediacodec.AudioEncoderDecoderSink.Companion.TARGET_FREQUENCY
+import com.google.android.soundchecker.utils.MultiChannelSineSource
+import com.google.android.soundchecker.utils.MultiSineSource
 
 import com.google.android.soundchecker.utils.SineSource
 import com.google.android.soundchecker.utils.WaveFileReader
@@ -29,34 +32,37 @@ class AudioEncoderDecoderFramework (codec: String, codecFormat: String, sampleRa
                                     aacProfile: Int, pcmEncoding: Int, usePitchSweep: Boolean,
                                     outputFile: File, reader: WaveFileReader?,
                                     encodedDataMediaMuxer: MediaMuxer?) {
-    private var mSineSource = SineSource()
+    private var mSineSource = MultiChannelSineSource()
     private var mWaveFileSource = WaveFileSource()
     private var mAudioEncoderSource = AudioEncoderSource(codec, codecFormat, sampleRate,
         channelCount, bitRate, flacCompressionLevel, aacProfile, pcmEncoding,
         encodedDataMediaMuxer)
     private var mAudioDecoderSource = AudioDecoderSource()
     var harmonicAnalyzerSink = AudioEncoderDecoderSink(outputFile)
-    private var mSineFrequency = 1000.0 // overwrite this with bin frequency
+    private var mSineFrequencies = ArrayList<Float>()
 
     init {
         harmonicAnalyzerSink.mSampleRate = sampleRate
-        val bin: Int = harmonicAnalyzerSink.calculateNearestBin(
-            AudioEncoderDecoderSink.TARGET_FREQUENCY)
+        val fundamentalBins = IntArray(channelCount)
+        for (channel in 0 until channelCount) {
+            fundamentalBins[channel] = harmonicAnalyzerSink.calculateNearestBin(TARGET_FREQUENCY * (channel + 1))
+        }
         if (reader != null) {
             mWaveFileSource.waveFileReader = reader
             mWaveFileSource.mChannelCount = channelCount
             mAudioEncoderSource.setSource(mWaveFileSource)
         } else {
-            mSineSource.getAmplitudePort().set(0.5f)
-            mSineSource.mSampleRate = sampleRate
-            if (usePitchSweep) {
-                mSineSource.enableSineSweep()
-                mSineSource.getFrequencyPort().set(sampleRate / 50.0F)
-                mSineSource.getFrequencyPort().mMinimum = sampleRate / 1000.0F
-                mSineSource.getFrequencyPort().mMaximum = sampleRate / 2.3F // Close to Nyquist
-            } else {
-                mSineFrequency = harmonicAnalyzerSink.calculateBinFrequency(bin)
-                mSineSource.getFrequencyPort().set(mSineFrequency.toFloat())
+            mSineSource.mChannelCount = channelCount
+            for (channel in 0 until channelCount) {
+                if (usePitchSweep) {
+                    mSineSource.addPartial(sampleRate / 1000.0F, sampleRate * (channel + 1) / 10.0F, sampleRate / 2.3F, sampleRate, true)
+                    mSineSource.getAmplitudePort(channel).set(0.5f)
+                } else {
+                    val sineFrequency = harmonicAnalyzerSink.calculateBinFrequency(fundamentalBins[channel]).toFloat()
+                    mSineFrequencies.add(sineFrequency)
+                    mSineSource.addPartial(sampleRate / 1000.0F, sineFrequency, sampleRate / 2.3F, sampleRate, false)
+                    mSineSource.getAmplitudePort(channel).set(0.5f)
+                }
             }
             mAudioEncoderSource.setSource(mSineSource)
         }
@@ -65,7 +71,7 @@ class AudioEncoderDecoderFramework (codec: String, codecFormat: String, sampleRa
         harmonicAnalyzerSink.setSource(mAudioDecoderSource)
         mAudioDecoderSource.setHarmonicAnalyzer(harmonicAnalyzerSink)
         harmonicAnalyzerSink.mChannelCount = channelCount
-        harmonicAnalyzerSink.mFundamentalBin = bin
+        harmonicAnalyzerSink.mFundamentalBins = fundamentalBins
         harmonicAnalyzerSink.mUseAnalyzer = (reader == null)
         harmonicAnalyzerSink.mUseFundamentalBin = (reader == null) && !usePitchSweep
     }

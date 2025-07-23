@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,24 +17,24 @@
 package com.google.android.soundchecker.utils
 
 import android.media.MediaCodec
-import android.util.Log
 
 /**
- * Audio source that mixes multiple sine sources
- * When pulling from this source, the sine sources will be mixed to the first channel.
- * The rest of the channels will not be filled.
+ * Multi channel sine source where each channel has its own frequency and amplitude.
+ * When pulling from this source, the channels will be rendered in order and not combined.
  */
-class MultiSineSource : AudioSource() {
+class MultiChannelSineSource : AudioSource() {
 
     private val mSineSources = ArrayList<SineSource>()
 
-    private var mTemporaryBuffer: FloatArray? = null
-
-    fun addPartial(min: Float, current: Float, max: Float) {
+    fun addPartial(min: Float, current: Float, max: Float, sampleRate: Int, enableSineSweep: Boolean = false) {
         val sineSource = SineSource()
+        sineSource.mSampleRate = sampleRate
         sineSource.getFrequencyPort().mMinimum = min
         sineSource.getFrequencyPort().mMaximum = max
         sineSource.getFrequencyPort().set(current)
+        if (enableSineSweep) {
+            sineSource.enableSineSweep()
+        }
         mSineSources.add(sineSource)
     }
 
@@ -51,34 +51,29 @@ class MultiSineSource : AudioSource() {
     }
 
     override fun render(buffer: FloatArray, offset: Int, stride: Int, numFrames: Int): Int {
-        if (mTemporaryBuffer == null || mTemporaryBuffer!!.size < numFrames) {
-            mTemporaryBuffer = FloatArray(numFrames)
-        }
-        checkNotNull(mTemporaryBuffer) {
-            Log.e(TAG, "Cannot init internal buffer")
-        }
-        // Clear for mixing.
-        for (i in 0 until numFrames * stride) {
-            buffer[i] = 0.0f
-        }
-        for (sine in mSineSources) {
-            sine.render(mTemporaryBuffer!!, 0, 1, numFrames)
-            // Mix into the output buffer.
-            var index = offset
-            for (i in 0 until numFrames) {
-                buffer[index] += mTemporaryBuffer!![i]
-                index += stride
-            }
+        for (channel in 0 until mChannelCount) {
+            mSineSources[channel].render(buffer, channel, mChannelCount, numFrames)
         }
         return numFrames
     }
 
     override fun pull(buffer: ByteArray, numFrames: Int): MediaCodec.BufferInfo {
-        val floatArray = FloatArray(numFrames)
+        val floatArray = FloatArray(numFrames * getChannelCount())
         pull(floatArray, numFrames)
         floatArrayToByteArray(floatArray, buffer)
         val bufferInfo = MediaCodec.BufferInfo()
         bufferInfo.set(0, numFrames, 0, 0)
+        return bufferInfo
+    }
+
+    // Pull I16 bytes
+    override fun pull(numBytes: Int, buffer: ByteArray): MediaCodec.BufferInfo {
+        // TODO: Consolidate with similar code in SineSource
+        val floatArray = FloatArray(numBytes * Short.SIZE_BYTES / Float.SIZE_BYTES)
+        pull(floatArray, numBytes * Short.SIZE_BYTES / Float.SIZE_BYTES / getChannelCount())
+        floatArrayToI16ByteArray(floatArray, buffer)
+        val bufferInfo = MediaCodec.BufferInfo()
+        bufferInfo.set(0, numBytes / 2 / getChannelCount(), 0, 0)
         return bufferInfo
     }
 

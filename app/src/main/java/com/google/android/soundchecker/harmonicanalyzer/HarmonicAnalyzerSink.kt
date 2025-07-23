@@ -66,8 +66,10 @@ class HarmonicAnalyzerSink : AudioSink() {
     }
 
     private fun fireListeners(count: Int, result: HarmonicAnalyzer.Result) {
+        val results = ArrayList<HarmonicAnalyzer.Result>()
+        results.add(result)
         for (listener in mListeners) {
-            listener.onMeasurement(count, result)
+            listener.onMeasurement(count, results)
         }
     }
 
