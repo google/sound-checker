@@ -101,6 +101,9 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mFrequencyBins: MutableList<FloatArray?>? = null
     private var mSpectrograms: MutableList<MutableList<FloatArray?>?>? = null
     private var mWaveforms: MutableList<FloatArray?>? = null
+    private var mTopBins: IntArray? = null
+    private var mTopFrequencies: FloatArray? = null
+    private var mFundamentalFrequencies: MutableList<MutableList<Float>?>? = null
 
     private var mSpinnersEnabled = mutableStateOf(true)
     private var mSampleRateText = mutableStateOf("")
@@ -110,6 +113,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mAacProfileText = mutableStateOf("")
     private var mAudioCodecText = mutableStateOf("")
     private var mOutputFormatText = mutableStateOf("")
+    private var mEncoderDelayText = mutableStateOf("")
 
     private var mAudioEncoderDecoderFramework: AudioEncoderDecoderFramework? = null
     private val mListener: MyHarmonicAnalyzerListener = MyHarmonicAnalyzerListener()
@@ -118,6 +122,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mBitrate = 0;
     private var mFlacCompressionLevel = 0;
     private var mAacProfile = 0;
+    private var mEncoderDelay = 0;
 
     private var mCodecStatus = mutableStateOf("")
     private var mAudioCodecs: MutableList<MediaCodecInfo>? = null
@@ -493,6 +498,46 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.padding(4.dp))
+                    Row {
+                        Text(text = "Encoder Delay")
+                        Spacer(modifier = Modifier.padding(4.dp))
+                        var expanded by remember { mutableStateOf(false) }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .wrapContentSize(Alignment.CenterEnd)
+                        ) {
+                            // Create the dropdown menu
+                            DropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                ENCODER_DELAYS.forEachIndexed { index, bin ->
+                                    DropdownMenuItem(
+                                        text = { Text(bin.toString()) },
+                                        onClick = {
+                                            mEncoderDelay =
+                                                ENCODER_DELAYS[index]
+                                            mEncoderDelayText.value =
+                                                ENCODER_DELAYS[index].toString()
+                                            expanded = false
+                                        },
+                                        enabled = mSpinnersEnabled.value
+                                    )
+                                }
+                            }
+                            Text(
+                                text = mEncoderDelayText.value, modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(onClick = { expanded = true })
+                                    .background(
+                                        Color.Gray
+                                    )
+                            )
+                        }
+                    }
                     if (mInputFile == null) {
                         Spacer(modifier = Modifier.padding(4.dp))
                         Row {
@@ -553,12 +598,23 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     Text(text = mParam.value)
                     Spacer(modifier = Modifier.padding(4.dp))
                     Text(text = mStatus.value)
+                    if (mFundamentalFrequencies != null) {
+                        Spacer(modifier = Modifier.padding(4.dp))
+                        var channelNumber = 1
+                        for (frequencies in mFundamentalFrequencies!!) {
+                            Text(text = "Channel #$channelNumber initial frequencies: " + (frequencies?.take(5)?.joinToString()))
+                            channelNumber++
+                        }
+                    }
                     if (mWaveforms != null) {
                         var channelNumber = 1
                         for (waveform in mWaveforms!!) {
                             Spacer(modifier = Modifier.padding(4.dp))
-                            Text(text = "Resulting waveform. Channel #$channelNumber. Pinch to " +
-                                    "zoom")
+                            var waveformText = "Resulting waveform. Channel #$channelNumber. Pinch to zoom"
+                            if (mTopBins != null && mTopFrequencies != null) {
+                                waveformText += "\nBin: ${mTopBins!![channelNumber - 1]}, Frequency: ${mTopFrequencies!![channelNumber - 1]}"
+                            }
+                            Text(text = waveformText)
                             WaveformDisplay(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -758,7 +814,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     mPlaySineSweep.value,
                     mOutputFile!!,
                     null,
-                    mediaMuxer
+                    mediaMuxer,
+                    mEncoderDelay
                 )
             } else {
                 mInputFileStream?.close()
@@ -777,7 +834,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     mPlaySineSweep.value,
                     mOutputFile!!,
                     reader,
-                    mediaMuxer
+                    mediaMuxer,
+                    mEncoderDelay
                 )
             }
         } catch (e: Exception) {
@@ -804,6 +862,9 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         mWaveforms = null
         mFrequencyBins = null
         mSpectrograms = null
+        mTopBins = null
+        mTopFrequencies = null
+        mFundamentalFrequencies = null
         mStatus.value = ""
         mParam.value = ""
 
@@ -851,6 +912,32 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
             for (channel in 0 until numberOfChannels) {
                 mWaveforms!!.add(results[channel].buffer)
             }
+            if (mInputFile == null) {
+                mTopBins = IntArray(results.size)
+                mTopFrequencies = FloatArray(results.size)
+                if (mFundamentalFrequencies == null) {
+                    mFundamentalFrequencies = mutableListOf<MutableList<Float>?>()
+                    for (channel in 0 until results.size) {
+                        mFundamentalFrequencies!!.add(mutableListOf<Float>())
+                    }
+                }
+                for (channel in 0 until results.size) {
+                    val bins = results[channel].bins!!
+                    var maxValue = bins[0]
+                    var bestBin = 0
+                    for (bin in 1 until bins.size) {
+                        if (bins[bin] > maxValue) {
+                            maxValue = bins[bin]
+                            bestBin = bin
+                        }
+                    }
+                    val topFrequency = mAudioEncoderDecoderFramework?.calculateBinFrequency(bestBin)
+                    mTopBins!![channel] = bestBin
+                    mTopFrequencies!![channel] = topFrequency!!.toFloat()
+                    mFundamentalFrequencies!![channel]!!.add(topFrequency.toFloat())
+                }
+            }
+
             if (mInputFile != null) {
                 inputFileOnMeasurement(analysisCount, results)
             } else if (mPlaySineSweep.value) {
@@ -859,10 +946,11 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                 sineOnMeasurement(analysisCount, results)
             }
 
-            mParam.value = String.format("Decoded Sample Rate = %d Hz\nFFT size = %d\nFundamental Bins = %s",
+            mParam.value = String.format("Decoded Sample Rate = %d Hz\nFFT size = %d\nFundamental Bins = %s\nInitial Target Frequencies = %s",
                 mAudioEncoderDecoderFramework?.harmonicAnalyzerSink?.mSampleRate,
                 mAudioEncoderDecoderFramework?.harmonicAnalyzerSink?.mFftSize,
-                Arrays.toString(mAudioEncoderDecoderFramework?.harmonicAnalyzerSink?.mFundamentalBins))
+                Arrays.toString(mAudioEncoderDecoderFramework?.harmonicAnalyzerSink?.mFundamentalBins),
+                mAudioEncoderDecoderFramework?.getInitialFrequencies().toString())
 
             if (results[0].endOfStream) {
                 onStopTest()
@@ -1168,6 +1256,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         mBitrateText.value = mAvailableBitRates!![0].toString()
         mFlacCompressionLevel = FLAC_COMPRESSION_LEVELS[0]
         mFlacCompressionLevelText.value = FLAC_COMPRESSION_LEVELS[0].toString()
+        mEncoderDelay = ENCODER_DELAYS[0]
+        mEncoderDelayText.value = ENCODER_DELAYS[0].toString()
     }
 
     private fun updateCodecStatus() {
@@ -1221,6 +1311,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         private val AUDIO_FORMAT_AAC = MediaFormat.MIMETYPE_AUDIO_AAC
         private val DEFAULT_SAMPLE_RATES = listOf(8000, 16000, 32000, 44100, 48000, 96000, 192000)
         private val DEFAULT_BITRATES = listOf(6000, 10000, 20000, 64000, 128000)
+        private val ENCODER_DELAYS = listOf(0, 1000, 2000, 4000, 8000, 16000)
         private val FLAC_COMPRESSION_LEVELS = (0..8).toList()
         private val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_FLOAT
         private val WAVEFORM_HEIGHT = 200

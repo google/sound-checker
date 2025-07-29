@@ -29,17 +29,18 @@ import java.io.File
 
 class AudioEncoderDecoderFramework (codec: String, codecFormat: String, sampleRate: Int,
                                     channelCount: Int, bitRate: Int, flacCompressionLevel: Int,
-                                    aacProfile: Int, pcmEncoding: Int, usePitchSweep: Boolean,
-                                    outputFile: File, reader: WaveFileReader?,
-                                    encodedDataMediaMuxer: MediaMuxer?) {
+                                    aacProfile: Int, pcmEncoding: Int,
+                                    usePitchSweep: Boolean, outputFile: File,
+                                    reader: WaveFileReader?, encodedDataMediaMuxer: MediaMuxer?,
+                                    encoderDelay: Int) {
     private var mSineSource = MultiChannelSineSource()
     private var mWaveFileSource = WaveFileSource()
     private var mAudioEncoderSource = AudioEncoderSource(codec, codecFormat, sampleRate,
         channelCount, bitRate, flacCompressionLevel, aacProfile, pcmEncoding,
         encodedDataMediaMuxer)
-    private var mAudioDecoderSource = AudioDecoderSource()
+    private var mAudioDecoderSource = AudioDecoderSource(encoderDelay)
     var harmonicAnalyzerSink = AudioEncoderDecoderSink(outputFile)
-    private var mSineFrequencies = ArrayList<Float>()
+    private var mInitialFrequencies = ArrayList<Float>()
 
     init {
         harmonicAnalyzerSink.mSampleRate = sampleRate
@@ -55,11 +56,13 @@ class AudioEncoderDecoderFramework (codec: String, codecFormat: String, sampleRa
             mSineSource.mChannelCount = channelCount
             for (channel in 0 until channelCount) {
                 if (usePitchSweep) {
-                    mSineSource.addPartial(sampleRate / 1000.0F, sampleRate * (channel + 1) / 10.0F, sampleRate / 2.3F, sampleRate, true)
+                    val initialFrequency = sampleRate * (channel + 1) / 10.0F
+                    mInitialFrequencies.add(initialFrequency)
+                    mSineSource.addPartial(sampleRate / 1000.0F, initialFrequency, sampleRate / 2.3F, sampleRate, true)
                     mSineSource.getAmplitudePort(channel).set(0.5f)
                 } else {
                     val sineFrequency = harmonicAnalyzerSink.calculateBinFrequency(fundamentalBins[channel]).toFloat()
-                    mSineFrequencies.add(sineFrequency)
+                    mInitialFrequencies.add(sineFrequency)
                     mSineSource.addPartial(sampleRate / 1000.0F, sineFrequency, sampleRate / 2.3F, sampleRate, false)
                     mSineSource.getAmplitudePort(channel).set(0.5f)
                 }
@@ -88,6 +91,14 @@ class AudioEncoderDecoderFramework (codec: String, codecFormat: String, sampleRa
         harmonicAnalyzerSink.stop()
         mAudioDecoderSource.stop()
         mAudioEncoderSource.stop()
+    }
+
+    fun calculateBinFrequency(bin: Int): Float {
+        return harmonicAnalyzerSink.calculateBinFrequency(bin).toFloat()
+    }
+
+    fun getInitialFrequencies(): ArrayList<Float> {
+        return mInitialFrequencies
     }
 
     fun addListener(listener: HarmonicAnalyzerListener) {
