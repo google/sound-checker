@@ -508,7 +508,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                                 .fillMaxWidth()
                                 .wrapContentSize(Alignment.CenterEnd)
                         ) {
-                            // Create the dropdown menu
+                            // Create a dropdown menu for encoder delays
                             DropdownMenu(
                                 expanded = expanded,
                                 onDismissRequest = { expanded = false },
@@ -602,7 +602,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                         Spacer(modifier = Modifier.padding(4.dp))
                         var channelNumber = 1
                         for (frequencies in mFundamentalFrequencies!!) {
-                            Text(text = "Channel #$channelNumber initial frequencies: " + (frequencies?.take(5)?.joinToString()))
+                            Text(text = "Channel #$channelNumber initial frequencies: " + (frequencies?.take(INITIAL_FREQUENCIES_TO_PRINT)?.joinToString()))
                             channelNumber++
                         }
                     }
@@ -1307,10 +1307,13 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         const val TAG = "AudioEncoderDecoderActivity"
 
         private const val FFT_SIZE = 1024
+        // Arbitrary number of frequencies to print. This helps us understand the output better.
+        private const val INITIAL_FREQUENCIES_TO_PRINT = 5
         private val AUDIO_FORMAT_FLAC = MediaFormat.MIMETYPE_AUDIO_FLAC
         private val AUDIO_FORMAT_AAC = MediaFormat.MIMETYPE_AUDIO_AAC
         private val DEFAULT_SAMPLE_RATES = listOf(8000, 16000, 32000, 44100, 48000, 96000, 192000)
         private val DEFAULT_BITRATES = listOf(6000, 10000, 20000, 64000, 128000)
+        // Arbitrary list of encoder delays in frames. These are used by the decoders to clip the early frames
         private val ENCODER_DELAYS = listOf(0, 1000, 2000, 4000, 8000, 16000)
         private val FLAC_COMPRESSION_LEVELS = (0..8).toList()
         private val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_FLOAT
