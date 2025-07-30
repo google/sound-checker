@@ -916,10 +916,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                 mTopBins = IntArray(results.size)
                 mTopFrequencies = FloatArray(results.size)
                 if (mFundamentalFrequencies == null) {
-                    mFundamentalFrequencies = mutableListOf<MutableList<Float>?>()
-                    for (channel in 0 until results.size) {
-                        mFundamentalFrequencies!!.add(mutableListOf<Float>())
-                    }
+                    mFundamentalFrequencies = MutableList(results.size) { mutableListOf<Float>() }
                 }
                 for (channel in 0 until results.size) {
                     val bins = results[channel].bins!!
