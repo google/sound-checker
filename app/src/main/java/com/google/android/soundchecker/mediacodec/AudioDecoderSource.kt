@@ -27,7 +27,7 @@ import java.nio.charset.Charset
 import java.util.Arrays
 import kotlin.math.min
 
-class AudioDecoderSource() : AudioSource() {
+class AudioDecoderSource(val encoderDelay: Int) : AudioSource() {
     private var decoder: MediaCodec? = null
     private var inputFormat: MediaFormat? = null
 
@@ -89,6 +89,7 @@ class AudioDecoderSource() : AudioSource() {
                 Log.e(TAG, "failed to get/set aacProfile")
             }
         }
+        inputFormat!!.setInteger(MediaFormat.KEY_ENCODER_DELAY, encoderDelay)
 
         // Check actual encoding - this may or may not exist
         try {
