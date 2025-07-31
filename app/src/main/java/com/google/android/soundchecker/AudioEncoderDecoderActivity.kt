@@ -920,14 +920,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                 }
                 for (channel in 0 until results.size) {
                     val bins = results[channel].bins!!
-                    var maxValue = bins[0]
-                    var bestBin = 0
-                    for (bin in 1 until bins.size) {
-                        if (bins[bin] > maxValue) {
-                            maxValue = bins[bin]
-                            bestBin = bin
-                        }
-                    }
+                    val maxValue = bins.max()
+                    val bestBin = bins.indexOfFirst { it == maxValue }
                     val topFrequency = mAudioEncoderDecoderFramework?.calculateBinFrequency(bestBin)
                     mTopBins!![channel] = bestBin
                     mTopFrequencies!![channel] = topFrequency!!.toFloat()
