@@ -688,36 +688,35 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     }
 
     private fun handleIntent() {
-        val intent = intent
         if (intent == null) {
             return
         }
         val source = intent.getStringExtra(INTENT_EXTRA_SOURCE)
         if (source == "file") {
             val inputFileName = intent.getStringExtra(INTENT_EXTRA_INPUT_FILE)
-            if (inputFileName != null) {
-                val dir = getExternalFilesDir(Environment.DIRECTORY_MUSIC)
-                if (dir != null) {
-                    val file = File(dir, inputFileName)
-                    if (file.exists()) {
-                        try {
-                            val authority = "${applicationContext.packageName}.provider"
-                            mInputFile = FileProvider.getUriForFile(applicationContext, authority, file)
-                            mInputFileName = inputFileName
-                            displayInputFileStatus()
-                            updateMediaCodecList()
-                        } catch (e: IllegalArgumentException) {
-                            Log.e("FileProvider", "FileProvider configuration error for $file", e)
-                            // This often means the file's path isn't covered in file_paths.xml
-                        }
-                    } else {
-                        Log.w("URIError", "File does not exist: ${file.absolutePath}")
-                    }
-                } else {
-                    Log.e("URIError", "External music directory not available.")
-                }
-            } else {
+            if (inputFileName == null) {
                 Log.w("URIError", "Intent extra INTENT_EXTRA_INPUT_FILE is null")
+                return
+            }
+            val dir = getExternalFilesDir(Environment.DIRECTORY_MUSIC)
+            if (dir == null) {
+                Log.e("URIError", "External music directory not available.")
+                return
+            }
+            val file = File(dir, inputFileName)
+            if (!file.exists()) {
+                Log.w("URIError", "File does not exist: ${file.absolutePath}")
+                return
+            }
+            try {
+                val authority = "${applicationContext.packageName}.provider"
+                mInputFile = FileProvider.getUriForFile(applicationContext, authority, file)
+                mInputFileName = inputFileName
+                displayInputFileStatus()
+                updateMediaCodecList()
+            } catch (e: IllegalArgumentException) {
+                Log.e("FileProvider", "FileProvider configuration error for $file", e)
+                // This often means the file's path isn't covered in file_paths.xml
             }
         } else if (source == "sine" || source == "sinesweep") {
             mPlaySineSweep.value = source == "sinesweep"
@@ -864,8 +863,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
 
         if (mOutputLogFileName != null) {
             val dir = getExternalFilesDir(Environment.DIRECTORY_MUSIC)
-            mOutputLogFile = File(dir, mOutputLogFileName!!)
-            mOutputLogFile!!.writeText("")
+            mOutputLogFile = mOutputLogFileName?.let { File(dir, it) }
+            mOutputLogFile?.writeText("")
         } else {
             mOutputLogFile = null
         }

@@ -41,6 +41,14 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val testType = intent.getStringExtra("test")
+        if (testType == "encoder_decoder") {
+            val forwardIntent = Intent(this, AudioEncoderDecoderActivity::class.java)
+            forwardIntent.putExtras(Bundle(intent.extras))
+            startActivity(forwardIntent)
+            finish()
+            return
+        }
         val items = listOf(
                 Pair(getString(R.string.mqa_player), MQAFilePlayerActivity::class.java),
                 Pair(getString(R.string.dsd_player), DSDFilePlayerActivity::class.java),

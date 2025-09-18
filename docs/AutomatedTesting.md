@@ -7,7 +7,7 @@ The `AudioEncoderDecoderActivity` can be launched with intents to automate testi
 To start the activity with an intent, use the following `adb` command:
 
 ```bash
-adb shell am start -n com.google.android.soundchecker/.AudioEncoderDecoderActivity -a android.intent.action.VIEW [options]
+adb shell am start -n com.google.android.soundchecker/.MainActivity -a android.intent.action.VIEW --es test encoder_decoder [options]
 ```
 
 ## Intent Extras
@@ -38,7 +38,8 @@ The following intent extras are available to configure the test:
 This example encodes a WAV file located at `/sdcard/Music/input.wav` to an AAC audio file and writes the analysis to `/sdcard/Music/output.txt`.
 
 ```bash
-adb shell am start -n com.google.android.soundchecker/.AudioEncoderDecoderActivity -a android.intent.action.VIEW \
+adb shell am start -n com.google.android.soundchecker/.MainActivity -a android.intent.action.VIEW \
+  --es test encoder_decoder \
   --es source file \
   --es input_file soundchecker_20250916-144021.wav \
   --es output_file output.txt \
@@ -56,7 +57,8 @@ adb shell am start -n com.google.android.soundchecker/.AudioEncoderDecoderActivi
 This example runs a test with a 1kHz sine wave at 48kHz sample rate, stereo channels, and saves the output as FLAC.
 
 ```bash
-adb shell am start -n com.google.android.soundchecker/.AudioEncoderDecoderActivity -a android.intent.action.VIEW \
+adb shell am start -n com.google.android.soundchecker/.MainActivity -a android.intent.action.VIEW \
+  --es test encoder_decoder \
   --es source sine \
   --es output_file sine_output.txt \
   --es codec_name c2.android.flac.encoder \
@@ -74,7 +76,8 @@ adb shell am start -n com.google.android.soundchecker/.AudioEncoderDecoderActivi
 This example runs a test with a sine sweep.
 
 ```bash
-adb shell am start -n com.google.android.soundchecker/.AudioEncoderDecoderActivity -a android.intent.action.VIEW \
+adb shell am start -n com.google.android.soundchecker/.MainActivity -a android.intent.action.VIEW \
+  --es test encoder_decoder \
   --es source sinesweep \
   --es output_file sinesweep_output.txt \
   --es codec_name c2.android.opus.encoder \
@@ -92,7 +95,8 @@ adb shell am start -n com.google.android.soundchecker/.AudioEncoderDecoderActivi
 This example runs a test with a sine sweep and an encoder delay of 1000 frames.
 
 ```bash
-adb shell am start -n com.google.android.soundchecker/.AudioEncoderDecoderActivity -a android.intent.action.VIEW \
+adb shell am start -n com.google.android.soundchecker/.MainActivity -a android.intent.action.VIEW \
+  --es test encoder_decoder \
   --es source sinesweep \
   --es output_file sinesweep_output.txt \
   --es codec_name c2.android.opus.encoder \

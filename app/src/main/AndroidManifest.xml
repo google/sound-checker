@@ -45,6 +45,10 @@
 
         <category android:name="android.intent.category.LAUNCHER" />
       </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+      </intent-filter>
     </activity>
     <activity
         android:name=".MQAFilePlayerActivity"
@@ -81,10 +85,6 @@
         android:exported="true"
         android:label="@string/test_audio_encoder_decoder"
         android:theme="@style/Theme.SoundChecker">
-      <intent-filter>
-        <action android:name="android.intent.action.VIEW" />
-        <category android:name="android.intent.category.DEFAULT" />
-      </intent-filter>
     </activity>
 
     <provider
