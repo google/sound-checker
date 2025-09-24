@@ -17,7 +17,7 @@ The following intent extras are available to configure the test:
 | Extra Key | Type | Description |
 |---|---|---|
 | `source` | String | The input source for the test. Can be `file`, `sine`, or `sinesweep`. |
-| `input_file` | String | The name to the input file. This should be in the /storage/emulated/0/Android/data/com.google.android.soundchecker/files/Music directory. Required if `source` is `file`. |
+| `input_file` | String | The name to the input file. This should be in the /sdcard/Music directory. You can use `adb push your_test_audio.wav /sdcard/Music/` to push your file. Required if `source` is `file`. |
 | `output_file` | String | The name of the output file where the results of each callback will be written. This file will be saved in the app's external music directory. |
 | `codec_name` | String | The name of the audio codec to use (e.g., `c2.android.aac.encoder`). |
 | `mime_type` | String | The MIME type of the output format (e.g., `audio/mp4a-latm`). |
@@ -35,13 +35,13 @@ The following intent extras are available to configure the test:
 
 ### Example 1: Encode a WAV file to AAC
 
-This example encodes a WAV file located at `/sdcard/Music/input.wav` to an AAC audio file and writes the analysis to `/sdcard/Music/output.txt`.
+This example encodes a WAV file located at `/sdcard/Music/input.wav` to an AAC audio file and saves the output in the app's external music directory. This is usually the /storage/emulated/0/Android/data/com.google.android.soundchecker/files/Music directory.
 
 ```bash
 adb shell am start -n com.google.android.soundchecker/.MainActivity -a android.intent.action.VIEW \
   --es test encoder_decoder \
   --es source file \
-  --es input_file soundchecker_20250916-144021.wav \
+  --es input_file input.wav \
   --es output_file output.txt \
   --es codec_name c2.android.aac.encoder \
   --es mime_type audio/mp4a-latm \

@@ -16,9 +16,10 @@
 
 package com.google.android.soundchecker
 
-import androidx.compose.runtime.LaunchedEffect
-
+import android.Manifest
+import android.content.ContentUris
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
@@ -27,9 +28,12 @@ import android.media.MediaCodecInfo
 import android.media.MediaCodecList
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Toast
@@ -60,6 +64,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,6 +75,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzer
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzer.Companion.amplitudeToDecibels
@@ -164,9 +170,6 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         setContent {
             LaunchedEffect(Unit) {
                 handleIntent()
-                if (mAutoStart) {
-                    runTest()
-                }
             }
             Scaffold(
                     topBar = {
@@ -691,37 +694,29 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         if (intent == null) {
             return
         }
+
         val source = intent.getStringExtra(INTENT_EXTRA_SOURCE)
         if (source == "file") {
-            val inputFileName = intent.getStringExtra(INTENT_EXTRA_INPUT_FILE)
-            if (inputFileName == null) {
-                Log.w("URIError", "Intent extra INTENT_EXTRA_INPUT_FILE is null")
-                return
+
+            var permission = Manifest.permission.READ_EXTERNAL_STORAGE
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                permission = Manifest.permission.READ_MEDIA_AUDIO
             }
-            val dir = getExternalFilesDir(Environment.DIRECTORY_MUSIC)
-            if (dir == null) {
-                Log.e("URIError", "External music directory not available.")
-                return
-            }
-            val file = File(dir, inputFileName)
-            if (!file.exists()) {
-                Log.w("URIError", "File does not exist: ${file.absolutePath}")
-                return
-            }
-            try {
-                val authority = "${applicationContext.packageName}.provider"
-                mInputFile = FileProvider.getUriForFile(applicationContext, authority, file)
-                mInputFileName = inputFileName
-                displayInputFileStatus()
-                updateMediaCodecList()
-            } catch (e: IllegalArgumentException) {
-                Log.e("FileProvider", "FileProvider configuration error for $file", e)
-                // This often means the file's path isn't covered in file_paths.xml
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                permissionsResultCallback.launch(permission)
+            } else {
+                updateInputFileFromIntent()
             }
         } else if (source == "sine" || source == "sinesweep") {
             mPlaySineSweep.value = source == "sinesweep"
+            handleRestOfIntent()
         }
+    }
 
+    // We need to handle intents differently in the input file case as a callback is used.
+    // This is should be called after the input file is done with its setup or directly when
+    // an input file is not used.
+    private fun handleRestOfIntent() {
         val codecName = intent.getStringExtra(INTENT_EXTRA_CODEC_NAME)
         if (codecName != null) {
             mAudioCodecText.value = codecName
@@ -747,8 +742,77 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         mAutoStart = intent.getBooleanExtra(INTENT_EXTRA_AUTO_START, mAutoStart)
         mAutoExit = intent.getBooleanExtra(INTENT_EXTRA_AUTO_EXIT, mAutoExit)
         mOutputLogFileName = intent.getStringExtra(INTENT_EXTRA_OUTPUT_FILE)
+
+        if (mAutoStart) {
+            runTest()
+        }
     }
 
+    private val permissionsResultCallback = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()){
+        when (it) {
+            true -> {
+                updateInputFileFromIntent()
+            }
+            false -> {
+                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun updateInputFileFromIntent() {
+        val source = intent.getStringExtra(INTENT_EXTRA_SOURCE)
+        if (source == "file") {
+            val inputFileName = intent.getStringExtra(INTENT_EXTRA_INPUT_FILE)
+            if (inputFileName == null) {
+                Log.w("URIError", "Intent extra INTENT_EXTRA_INPUT_FILE is null")
+                return
+            }
+            val filePath = "/sdcard/Music/${inputFileName}"
+            val file = File(filePath)
+
+            if (!file.exists()) {
+                // If you see this log, your path is wrong or the file isn't there.
+                Log.e("MediaScanner", "File does NOT exist at path: $filePath")
+                return
+            }
+
+            Log.i("MediaScanner", "File exists at path: $filePath. Starting scan.")
+            MediaScannerConnection.scanFile(
+                this,
+                arrayOf(filePath),
+                arrayOf("audio/wav")
+            ) { path, uri ->
+                Log.i("MediaScanner", "Scan complete for $path, URI is $uri")
+
+                val projection =
+                    arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DISPLAY_NAME)
+                val selection = "${MediaStore.Audio.Media.DISPLAY_NAME} = ?"
+                val selectionArgs = arrayOf(inputFileName)
+
+                val cursor = applicationContext.contentResolver.query(
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                    projection,
+                    selection,
+                    selectionArgs,
+                    null
+                )
+
+                cursor?.use {
+                    if (it.moveToFirst()) {
+                        val id = it.getLong(it.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
+                        mInputFile =
+                            ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+                        mInputFileName = inputFileName
+                        displayInputFileStatus()
+                        updateMediaCodecList()
+                    }
+                }
+
+                handleRestOfIntent()
+            }
+        }
+    }
     private fun onStartTest() {
         runTest()
     }
@@ -1032,11 +1096,11 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                 mAudioEncoderDecoderFramework?.getInitialFrequencies().toString())
 
             if (mOutputLogFile != null) {
-                mOutputLogFile!!.appendText("onMeasurement: " + analysisCount + "\n")
-                mOutputLogFile!!.appendText(mParam.value + "\n")
-                mOutputLogFile!!.appendText(mStatus.value + "\n")
+                mOutputLogFile?.appendText("onMeasurement: " + analysisCount + "\n")
+                mOutputLogFile?.appendText(mParam.value + "\n")
+                mOutputLogFile?.appendText(mStatus.value + "\n")
                 if (mTopFrequencies != null) {
-                    mOutputLogFile!!.appendText("Top Frequencies: " + mTopFrequencies!!.joinToString() + "\n")
+                    mOutputLogFile?.appendText("Top Frequencies: " + mTopFrequencies!!.joinToString() + "\n")
                 }
             }
 
