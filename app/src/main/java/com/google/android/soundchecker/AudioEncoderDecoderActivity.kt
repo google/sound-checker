@@ -1095,12 +1095,12 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                 Arrays.toString(mAudioEncoderDecoderFramework?.harmonicAnalyzerSink?.mFundamentalBins),
                 mAudioEncoderDecoderFramework?.getInitialFrequencies().toString())
 
-            if (mOutputLogFile != null) {
-                mOutputLogFile?.appendText("onMeasurement: " + analysisCount + "\n")
-                mOutputLogFile?.appendText(mParam.value + "\n")
-                mOutputLogFile?.appendText(mStatus.value + "\n")
+            mOutputLogFile?.let {
+                it.appendText("onMeasurement: " + analysisCount + "\n")
+                it.appendText(mParam.value + "\n")
+                it.appendText(mStatus.value + "\n")
                 if (mTopFrequencies != null) {
-                    mOutputLogFile?.appendText("Top Frequencies: " + mTopFrequencies!!.joinToString() + "\n")
+                    it.appendText("Top Frequencies: " + mTopFrequencies!!.joinToString() + "\n")
                 }
             }
 
