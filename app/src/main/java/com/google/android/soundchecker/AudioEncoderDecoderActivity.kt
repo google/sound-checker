@@ -119,7 +119,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mBitrateText = mutableStateOf("")
     private var mFlacCompressionLevelText = mutableStateOf("")
     private var mAacProfileText = mutableStateOf("")
-    private var mAudioCodecText = mutableStateOf("")
+    private var mEncoderText = mutableStateOf("")
+    private var mDecoderText = mutableStateOf("")
     private var mOutputFormatText = mutableStateOf("")
     private var mEncoderDelayText = mutableStateOf("")
 
@@ -132,10 +133,14 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mAacProfile = 0;
     private var mEncoderDelay = 0;
 
-    private var mCodecStatus = mutableStateOf("")
-    private var mAudioCodecs: MutableList<MediaCodecInfo>? = null
-    private var mAudioCodecStrings: MutableList<String>? = null
-    private var mSelectedCodec: MediaCodecInfo? = null
+    private var mEncoderStatus = mutableStateOf("")
+    private var mDecoderStatus = mutableStateOf("")
+    private var mAudioEncoders: MutableList<MediaCodecInfo>? = null
+    private var mAudioEncoderStrings: MutableList<String>? = null
+    private var mAudioDecoders: MutableList<MediaCodecInfo>? = null
+    private var mAudioDecoderStrings: MutableList<String>? = null
+    private var mSelectedEncoder: MediaCodecInfo? = null
+    private var mSelectedDecoder: MediaCodecInfo? = null
     private var mAvailableOutputFormats: MutableList<String>? = null
     private var mAvailableSampleRates: MutableList<Int>? = null
     private var mAvailableChannelCounts: MutableList<Int>? = null
@@ -166,7 +171,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        updateMediaCodecList()
+        updateEncoderList()
         setContent {
             LaunchedEffect(Unit) {
                 handleIntent()
@@ -193,7 +198,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                                 mInputFileName = getSelectedFileName()
                                 mInputFileMsg.value = getSelectedFileUnplayableReason()
                                 displayInputFileStatus()
-                                updateMediaCodecList()
+                                updateEncoderList()
                             }
                         }
                         Button(onClick = {
@@ -207,7 +212,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                             mInputFile = null
                             mInputFileName = ""
                             mInputFileStatus.value = ""
-                            updateMediaCodecList()
+                            updateEncoderList()
                         }) {
                             Text(text = "Cancel")
                         }
@@ -231,7 +236,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                         Spacer(modifier = Modifier.padding(4.dp))
                     }
                     Row {
-                        Text(text = "Audio Codec")
+                        Text(text = "Encoder")
                         Spacer(modifier = Modifier.padding(4.dp))
                         var expanded by remember { mutableStateOf(false) }
                         Box(
@@ -245,13 +250,13 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                                 onDismissRequest = { expanded = false },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                mAudioCodecStrings!!.forEachIndexed { index, bin ->
+                                mAudioEncoderStrings!!.forEachIndexed { index, bin ->
                                     DropdownMenuItem(
                                         text = { Text(bin) },
                                         onClick = {
-                                            mSelectedCodec = mAudioCodecs!![index]
-                                            mAudioCodecText.value = mAudioCodecStrings!![index]
-                                            updateAvailableOutputFormats()
+                                            mSelectedEncoder = mAudioEncoders!![index]
+                                            mEncoderText.value = mAudioEncoderStrings!![index]
+                                            onEncoderSelected()
                                             expanded = false
                                         },
                                         enabled = mSpinnersEnabled.value
@@ -259,7 +264,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                                 }
                             }
                             Text(
-                                text = mAudioCodecText.value, modifier = Modifier
+                                text = mEncoderText.value, modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable(onClick = { expanded = true })
                                     .background(
@@ -270,7 +275,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     }
                     Spacer(modifier = Modifier.padding(4.dp))
                     Text(
-                        text = mCodecStatus.value,
+                        text = mEncoderStatus.value,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Light
                     )
@@ -517,6 +522,51 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     }
                     Spacer(modifier = Modifier.padding(4.dp))
                     Row {
+                        Text(text = "Decoder")
+                        Spacer(modifier = Modifier.padding(4.dp))
+                        var expanded by remember { mutableStateOf(false) }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .wrapContentSize(Alignment.CenterEnd)
+                        ) {
+                            // Create the dropdown menu
+                            DropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                mAudioDecoderStrings!!.forEachIndexed { index, bin ->
+                                    DropdownMenuItem(
+                                        text = { Text(bin) },
+                                        onClick = {
+                                            mSelectedDecoder = mAudioDecoders!![index]
+                                            mEncoderText.value = mAudioDecoderStrings!![index]
+                                            updateDecoderStatus()
+                                            expanded = false
+                                        },
+                                        enabled = mSpinnersEnabled.value
+                                    )
+                                }
+                            }
+                            Text(
+                                text = mDecoderText.value, modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(onClick = { expanded = true })
+                                    .background(
+                                        Color.Gray
+                                    )
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.padding(4.dp))
+                    Text(
+                        text = mDecoderStatus.value,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Light
+                    )
+                    Spacer(modifier = Modifier.padding(4.dp))
+                    Row {
                         Text(text = "Encoder Delay")
                         Spacer(modifier = Modifier.padding(4.dp))
                         var expanded by remember { mutableStateOf(false) }
@@ -717,9 +767,13 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     // This is should be called after the input file is done with its setup or directly when
     // an input file is not used.
     private fun handleRestOfIntent() {
-        val codecName = intent.getStringExtra(INTENT_EXTRA_CODEC_NAME)
-        if (codecName != null) {
-            mAudioCodecText.value = codecName
+        val encoderName = intent.getStringExtra(INTENT_EXTRA_ENCODER_NAME)
+        if (encoderName != null) {
+            mEncoderText.value = encoderName
+        }
+        val decoderName = intent.getStringExtra(INTENT_EXTRA_DECODER_NAME)
+        if (decoderName != null) {
+            mDecoderText.value = decoderName
         }
         val mimeType = intent.getStringExtra(INTENT_EXTRA_MIME_TYPE)
         if (mimeType != null) {
@@ -805,7 +859,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                             ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
                         mInputFileName = inputFileName
                         displayInputFileStatus()
-                        updateMediaCodecList()
+                        updateEncoderList()
                     }
                 }
 
@@ -952,7 +1006,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         try {
             if (mInputFile == null) {
                 mAudioEncoderDecoderFramework = AudioEncoderDecoderFramework(
-                    mAudioCodecText.value,
+                    mEncoderText.value,
+                    mDecoderText.value,
                     mOutputFormatText.value,
                     mSampleRate,
                     mChannelCount,
@@ -972,7 +1027,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                 val reader = WaveFileReader(inputStream!!)
                 reader.parse()
                 mAudioEncoderDecoderFramework = AudioEncoderDecoderFramework(
-                    mAudioCodecText.value,
+                    mEncoderText.value,
+                    mDecoderText.value,
                     mOutputFormatText.value,
                     mInputFileSampleRate,
                     mInputFileNumChannels,
@@ -1245,11 +1301,11 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         return name
     }
 
-    private fun updateMediaCodecList() {
+    private fun updateEncoderList() {
         val mediaCodecList = MediaCodecList(MediaCodecList.REGULAR_CODECS)
         val mediaCodecInfos: Array<MediaCodecInfo> = mediaCodecList.codecInfos
-        mAudioCodecs = mutableListOf<MediaCodecInfo>()
-        mAudioCodecStrings = mutableListOf<String>()
+        mAudioEncoders = mutableListOf<MediaCodecInfo>()
+        mAudioEncoderStrings = mutableListOf<String>()
         for (mediaCodecInfo in mediaCodecInfos) {
             if (mediaCodecInfo.isEncoder) {
                 for (type in mediaCodecInfo.getSupportedTypes()) {
@@ -1260,21 +1316,21 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                     if (audioCapabilities != null) {
                         if (mInputFile == null || isFormatSupported(mediaCodecInfo, type,
                                 mInputFileSampleRate, mInputFileNumChannels)) {
-                            mAudioCodecs!!.add(mediaCodecInfo)
-                            mAudioCodecStrings!!.add(mediaCodecInfo.name)
+                            mAudioEncoders!!.add(mediaCodecInfo)
+                            mAudioEncoderStrings!!.add(mediaCodecInfo.name)
                             break
                         }
                     }
                 }
             }
         }
-        mSelectedCodec = mAudioCodecs!!.get(0)
-        mAudioCodecText.value = mAudioCodecStrings!!.get(0)
-        updateAvailableOutputFormats()
+        mSelectedEncoder = mAudioEncoders!!.get(0)
+        mEncoderText.value = mAudioEncoderStrings!!.get(0)
+        onEncoderSelected()
     }
 
-    private fun updateAvailableOutputFormats() {
-        val mediaCodecInfo = mSelectedCodec!!
+    private fun onEncoderSelected() {
+        val mediaCodecInfo = mSelectedEncoder!!
         mAvailableOutputFormats = mutableListOf<String>()
         for (type in mediaCodecInfo.getSupportedTypes()) {
             val codecCapabilities: MediaCodecInfo.CodecCapabilities =
@@ -1335,7 +1391,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     }
 
     private fun updateSelectedFormat() {
-        val mediaCodecInfo = mSelectedCodec!!
+        val mediaCodecInfo = mSelectedEncoder!!
         var type = mOutputFormatText.value
 
         mAvailableAacProfiles = mutableListOf<Int>()
@@ -1360,9 +1416,9 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         updateSelectedCodecType(type)
     }
 
-    private fun updateSelectedCodecType(type: String) {
-        val mediaCodecInfo = mSelectedCodec!!
-        val codecCapabilities = mediaCodecInfo.getCapabilitiesForType(type)
+    private fun updateSelectedCodecType(encoderType: String) {
+        val mediaCodecInfo = mSelectedEncoder!!
+        val codecCapabilities = mediaCodecInfo.getCapabilitiesForType(encoderType)
         val audioCapabilities = codecCapabilities.audioCapabilities
         if (audioCapabilities.supportedSampleRates != null) {
             mAvailableSampleRates = audioCapabilities.supportedSampleRates.toMutableList()
@@ -1399,8 +1455,36 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
             mAvailableBitRates!!.add(audioCapabilities.bitrateRange.upper)
         }
 
-        updateCodecStatus()
+        updateEncoderStatus()
         updateCodecSpecificSpinnerValues()
+
+        mAudioDecoders = mutableListOf<MediaCodecInfo>()
+        mAudioDecoderStrings = mutableListOf<String>()
+        val mediaCodecList = MediaCodecList(MediaCodecList.REGULAR_CODECS)
+        val mediaCodecInfos: Array<MediaCodecInfo> = mediaCodecList.codecInfos
+        for (info in mediaCodecInfos) {
+            if (!info.isEncoder) {
+                for (decoderType in info.getSupportedTypes()) {
+                    if (decoderType == encoderType) {
+                        val decoderCodecCapabilities: MediaCodecInfo.CodecCapabilities =
+                            info.getCapabilitiesForType(decoderType)
+                        val decoderAudioCapabilities: MediaCodecInfo.AudioCapabilities? =
+                            decoderCodecCapabilities.audioCapabilities
+                        if (decoderAudioCapabilities != null) {
+                            if (mInputFile == null || isFormatSupported(info, decoderType,
+                                    mInputFileSampleRate, mInputFileNumChannels)) {
+                                mAudioDecoders!!.add(info)
+                                mAudioDecoderStrings!!.add(info.name)
+                                break
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        mSelectedDecoder = mAudioDecoders!!.get(0)
+        mDecoderText.value = mAudioDecoderStrings!!.get(0)
+        updateDecoderStatus()
     }
 
     private fun updateCodecSpecificSpinnerValues() {
@@ -1416,8 +1500,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         mEncoderDelayText.value = ENCODER_DELAYS[0].toString()
     }
 
-    private fun updateCodecStatus() {
-        val mediaCodecInfo = mSelectedCodec!!
+    private fun updateEncoderStatus() {
+        val mediaCodecInfo = mSelectedEncoder!!
         val type = mOutputFormatText.value
         val report = StringBuffer()
         report.append("Name: ${mediaCodecInfo.name}\n")
@@ -1449,8 +1533,82 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
             }
             report.append("Supported AAC Profiles: ${Arrays.toString(supportedAACProfileStrings)}\n")
         }
-        report.append("Is Encoder: ${mediaCodecInfo.isEncoder}")
-        mCodecStatus.value = report.toString()
+        mEncoderStatus.value = report.toString()
+    }
+
+    private fun updateDecoderStatus() {
+        val mediaCodecInfo = mSelectedDecoder!!
+        val report = StringBuffer()
+        report.append("Name: ${mediaCodecInfo.name}\n")
+        report.append("Canonical Name: ${mediaCodecInfo.canonicalName}\n")
+        report.append("Is Alias: ${mediaCodecInfo.isAlias}\n")
+        report.append("Is Hardware Accelerated: ${mediaCodecInfo.isHardwareAccelerated}\n")
+        report.append("Is Software Only: ${mediaCodecInfo.isSoftwareOnly}\n")
+        report.append("Is Vendor: ${mediaCodecInfo.isVendor}\n")
+        report.append("Is Encoder: ${mediaCodecInfo.isEncoder}\n")
+        report.append("Supported Types: ${Arrays.toString(mediaCodecInfo.supportedTypes)}\n")
+        for (type in mediaCodecInfo.supportedTypes) {
+            val codecCapabilities = mediaCodecInfo.getCapabilitiesForType(type)
+            val audioCapabilities = codecCapabilities.audioCapabilities
+            if (audioCapabilities != null) {
+                report.append("Audio Type: $type\n")
+                report.append("Bitrate Range: ${audioCapabilities.bitrateRange}\n")
+                report.append(
+                    "Input Channel Count Ranges: ${
+                        Arrays.toString(
+                            audioCapabilities
+                                .inputChannelCountRanges
+                        )
+                    }\n"
+                )
+                report.append(
+                    "Min Input Channel Count: ${
+                        audioCapabilities
+                            .minInputChannelCount
+                    }\n"
+                )
+                report.append(
+                    "Max Input Channel Count: ${
+                        audioCapabilities
+                            .maxInputChannelCount
+                    }\n"
+                )
+                report.append(
+                    "Supported Sample Rate Ranges: ${
+                        Arrays.toString(
+                            audioCapabilities
+                                .supportedSampleRateRanges
+                        )
+                    }\n"
+                )
+                report.append(
+                    "Supported Sample Rates: ${
+                        Arrays.toString(
+                            audioCapabilities
+                                .supportedSampleRates
+                        )
+                    }\n"
+                )
+
+                var supportedAACProfileStrings = emptyArray<String>()
+                for (aacProfile in AAC_CODEC_PROFILES_TO_STRING) {
+                    val aacFormat = MediaFormat()
+
+                    aacFormat.setString(MediaFormat.KEY_MIME, type)
+                    aacFormat.setInteger(
+                        MediaFormat.KEY_AAC_PROFILE,
+                        aacProfile.key
+                    )
+
+                    val codecCapabilities = mediaCodecInfo.getCapabilitiesForType(type)
+                    if (codecCapabilities.isFormatSupported(aacFormat)) {
+                        supportedAACProfileStrings += AAC_CODEC_PROFILES_TO_STRING[aacProfile.key].toString()
+                    }
+                }
+                report.append("Supported AAC Profiles: ${Arrays.toString(supportedAACProfileStrings)}\n")
+            }
+        }
+        mDecoderStatus.value = report.toString()
     }
 
     override fun onStop() {
@@ -1511,7 +1669,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         const val INTENT_EXTRA_SOURCE = "source"
         const val INTENT_EXTRA_INPUT_FILE = "input_file"
         const val INTENT_EXTRA_OUTPUT_FILE = "output_file"
-        const val INTENT_EXTRA_CODEC_NAME = "codec_name"
+        const val INTENT_EXTRA_ENCODER_NAME = "encoder_name"
+        const val INTENT_EXTRA_DECODER_NAME = "decoder_name"
         const val INTENT_EXTRA_MIME_TYPE = "mime_type"
         const val INTENT_EXTRA_SAMPLE_RATE = "sample_rate"
         const val INTENT_EXTRA_CHANNEL_COUNT = "channel_count"
