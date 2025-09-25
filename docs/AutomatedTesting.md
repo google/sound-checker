@@ -19,7 +19,8 @@ The following intent extras are available to configure the test:
 | `source` | String | The input source for the test. Can be `file`, `sine`, or `sinesweep`. |
 | `input_file` | String | The name to the input file. This should be in the /sdcard/Music directory. You can use `adb push your_test_audio.wav /sdcard/Music/` to push your file. Required if `source` is `file`. |
 | `output_file` | String | The name of the output file where the results of each callback will be written. This file will be saved in the app's external music directory. |
-| `codec_name` | String | The name of the audio codec to use (e.g., `c2.android.aac.encoder`). |
+| `encoder_name` | String | The name of the audio codec to use (e.g., `c2.android.aac.encoder`). |
+| `decoder_name` | String | The name of the audio codec to use (e.g., `c2.android.aac.decoder`). |
 | `mime_type` | String | The MIME type of the output format (e.g., `audio/mp4a-latm`). |
 | `sample_rate` | Int | The sample rate in Hz. |
 | `channel_count` | Int | The number of audio channels. |
@@ -43,7 +44,8 @@ adb shell am start -n com.google.android.soundchecker/.MainActivity -a android.i
   --es source file \
   --es input_file input.wav \
   --es output_file output.txt \
-  --es codec_name c2.android.aac.encoder \
+  --es encoder_name c2.android.aac.encoder \
+  --es decoder_name c2.android.aac.decoder \
   --es mime_type audio/mp4a-latm \
   --ei bitrate 128000 \
   --ei aac_profile 2 \
@@ -61,7 +63,8 @@ adb shell am start -n com.google.android.soundchecker/.MainActivity -a android.i
   --es test encoder_decoder \
   --es source sine \
   --es output_file sine_output.txt \
-  --es codec_name c2.android.flac.encoder \
+  --es encoder_name c2.android.flac.encoder \
+  --es decoder_name c2.android.flac.decoder \
   --es mime_type audio/flac \
   --ei sample_rate 48000 \
   --ei channel_count 2 \
@@ -80,7 +83,8 @@ adb shell am start -n com.google.android.soundchecker/.MainActivity -a android.i
   --es test encoder_decoder \
   --es source sinesweep \
   --es output_file sinesweep_output.txt \
-  --es codec_name c2.android.opus.encoder \
+  --es encoder_name c2.android.opus.encoder \
+  --es decoder_name c2.android.opus.decoder \
   --es mime_type audio/opus \
   --ei sample_rate 48000 \
   --ei channel_count 2 \
@@ -99,7 +103,8 @@ adb shell am start -n com.google.android.soundchecker/.MainActivity -a android.i
   --es test encoder_decoder \
   --es source sinesweep \
   --es output_file sinesweep_output.txt \
-  --es codec_name c2.android.opus.encoder \
+  --es encoder_name c2.android.opus.encoder \
+  --es decoder_name c2.android.opus.decoder \
   --es mime_type audio/opus \
   --ei sample_rate 48000 \
   --ei channel_count 1 \

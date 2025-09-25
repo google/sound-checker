@@ -27,7 +27,7 @@ import java.nio.charset.Charset
 import java.util.Arrays
 import kotlin.math.min
 
-class AudioDecoderSource(val encoderDelay: Int) : AudioSource() {
+class AudioDecoderSource(val codecName: String, val encoderDelay: Int) : AudioSource() {
     private var decoder: MediaCodec? = null
     private var inputFormat: MediaFormat? = null
 
@@ -108,7 +108,10 @@ class AudioDecoderSource(val encoderDelay: Int) : AudioSource() {
 
     fun start() {
         val mcl = MediaCodecList(MediaCodecList.ALL_CODECS)
-        val decoderName = mcl.findDecoderForFormat(inputFormat)
+        var decoderName = mcl.findDecoderForFormat(inputFormat)
+        if (codecName != "") {
+            decoderName = codecName
+        }
         decoder = MediaCodec.createByCodecName(decoderName)
         //decoder = MediaCodec.createDecoderByType(inputFormat!!.getString(MediaFormat.KEY_MIME)!!)
         decoder!!.configure(inputFormat, null, null, 0)
