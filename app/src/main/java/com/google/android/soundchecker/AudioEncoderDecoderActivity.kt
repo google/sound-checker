@@ -16,7 +16,10 @@
 
 package com.google.android.soundchecker
 
+import android.Manifest
+import android.content.ContentUris
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
@@ -25,9 +28,12 @@ import android.media.MediaCodecInfo
 import android.media.MediaCodecList
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Toast
@@ -58,6 +64,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,6 +75,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzer
 import com.google.android.soundchecker.harmonicanalyzer.HarmonicAnalyzer.Companion.amplitudeToDecibels
@@ -144,15 +152,25 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private var mInputFileStatus = mutableStateOf("")
     private var mInputFileNumChannels = 0
     private var mInputFileSampleRate = 0
+    private var mInputFileName = ""
     private var mInputFileStream: InputStream? = null
+    private var mOutputLogFileName: String? = null
+    private var mOutputLogFile: File? = null
 
     private var mPlayAudioMonotonicCounter = 0 // Used to allow one AudioTrack to play at a time.
+    private var mAutoStart = false
+    private var mAutoExit = false
+    private var mCallbackCount = 0
+    private var mMaxCallbacks = -1
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         updateMediaCodecList()
         setContent {
+            LaunchedEffect(Unit) {
+                handleIntent()
+            }
             Scaffold(
                     topBar = {
                         TopAppBar(
@@ -166,14 +184,13 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                             .padding(paddingValues = paddingValues)
                             .verticalScroll(rememberScrollState())) {
                     Divider(color = Color.Gray, thickness = 1.dp)
-                    var inputFileName by remember { mutableStateOf("") }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val pickFileLauncher = rememberLauncherForActivityResult(
                             ActivityResultContracts.GetContent()
                         ) { uri ->
                             if (uri != null) {
                                 mInputFile = uri
-                                inputFileName = getSelectedFileName()
+                                mInputFileName = getSelectedFileName()
                                 mInputFileMsg.value = getSelectedFileUnplayableReason()
                                 displayInputFileStatus()
                                 updateMediaCodecList()
@@ -188,7 +205,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
 
                         Button(onClick = {
                             mInputFile = null
-                            inputFileName = ""
+                            mInputFileName = ""
                             mInputFileStatus.value = ""
                             updateMediaCodecList()
                         }) {
@@ -203,7 +220,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                         }
                     }
                     mInputFileMsg.value = getSelectedFileUnplayableReason()
-                    Text(text = inputFileName)
+                    Text(text = mInputFileName)
                     if (mInputFileStatus.value != "") {
                         Spacer(modifier = Modifier.padding(4.dp))
                         Text(
@@ -673,6 +690,129 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         }
     }
 
+    private fun handleIntent() {
+        if (intent == null) {
+            return
+        }
+
+        val source = intent.getStringExtra(INTENT_EXTRA_SOURCE)
+        if (source == "file") {
+
+            var permission = Manifest.permission.READ_EXTERNAL_STORAGE
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                permission = Manifest.permission.READ_MEDIA_AUDIO
+            }
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                permissionsResultCallback.launch(permission)
+            } else {
+                updateInputFileFromIntent()
+            }
+        } else if (source == "sine" || source == "sinesweep") {
+            mPlaySineSweep.value = source == "sinesweep"
+            handleRestOfIntent()
+        }
+    }
+
+    // We need to handle intents differently in the input file case as a callback is used.
+    // This is should be called after the input file is done with its setup or directly when
+    // an input file is not used.
+    private fun handleRestOfIntent() {
+        val codecName = intent.getStringExtra(INTENT_EXTRA_CODEC_NAME)
+        if (codecName != null) {
+            mAudioCodecText.value = codecName
+        }
+        val mimeType = intent.getStringExtra(INTENT_EXTRA_MIME_TYPE)
+        if (mimeType != null) {
+            mOutputFormatText.value = mimeType
+        }
+        mSampleRate = intent.getIntExtra(INTENT_EXTRA_SAMPLE_RATE, mSampleRate)
+        mSampleRateText.value = mSampleRate.toString()
+        mChannelCount = intent.getIntExtra(INTENT_EXTRA_CHANNEL_COUNT, mChannelCount)
+        mChannelCountText.value = mChannelCount.toString()
+        mBitrate = intent.getIntExtra(INTENT_EXTRA_BITRATE, mBitrate)
+        mBitrateText.value = mBitrate.toString()
+        mAacProfile = intent.getIntExtra(INTENT_EXTRA_AAC_PROFILE, mAacProfile)
+        mAacProfileText.value = AAC_CODEC_PROFILES_TO_STRING[mAacProfile].toString()
+        mFlacCompressionLevel = intent.getIntExtra(INTENT_EXTRA_FLAC_COMPRESSION, mFlacCompressionLevel)
+        mFlacCompressionLevelText.value = mFlacCompressionLevel.toString()
+        mEncoderDelay = intent.getIntExtra(INTENT_EXTRA_ENCODER_DELAY, mEncoderDelay)
+        mEncoderDelayText.value = mEncoderDelay.toString()
+
+        mMaxCallbacks = intent.getIntExtra(INTENT_EXTRA_COUNT, mMaxCallbacks)
+        mAutoStart = intent.getBooleanExtra(INTENT_EXTRA_AUTO_START, mAutoStart)
+        mAutoExit = intent.getBooleanExtra(INTENT_EXTRA_AUTO_EXIT, mAutoExit)
+        mOutputLogFileName = intent.getStringExtra(INTENT_EXTRA_OUTPUT_FILE)
+
+        if (mAutoStart) {
+            runTest()
+        }
+    }
+
+    private val permissionsResultCallback = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()){
+        when (it) {
+            true -> {
+                updateInputFileFromIntent()
+            }
+            false -> {
+                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun updateInputFileFromIntent() {
+        val source = intent.getStringExtra(INTENT_EXTRA_SOURCE)
+        if (source == "file") {
+            val inputFileName = intent.getStringExtra(INTENT_EXTRA_INPUT_FILE)
+            if (inputFileName == null) {
+                Log.w("URIError", "Intent extra INTENT_EXTRA_INPUT_FILE is null")
+                return
+            }
+            val filePath = "/sdcard/Music/${inputFileName}"
+            val file = File(filePath)
+
+            if (!file.exists()) {
+                // If you see this log, your path is wrong or the file isn't there.
+                Log.e("MediaScanner", "File does NOT exist at path: $filePath")
+                return
+            }
+
+            Log.i("MediaScanner", "File exists at path: $filePath. Starting scan.")
+            MediaScannerConnection.scanFile(
+                this,
+                arrayOf(filePath),
+                arrayOf("audio/wav")
+            ) { path, uri ->
+                Log.i("MediaScanner", "Scan complete for $path, URI is $uri")
+
+                val projection =
+                    arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DISPLAY_NAME)
+                val selection = "${MediaStore.Audio.Media.DISPLAY_NAME} = ?"
+                val selectionArgs = arrayOf(inputFileName)
+
+                val cursor = applicationContext.contentResolver.query(
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                    projection,
+                    selection,
+                    selectionArgs,
+                    null
+                )
+
+                cursor?.use {
+                    if (it.moveToFirst()) {
+                        val id = it.getLong(it.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
+                        mInputFile =
+                            ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+                        mInputFileName = inputFileName
+                        displayInputFileStatus()
+                        updateMediaCodecList()
+                    }
+                }
+
+                handleRestOfIntent()
+            }
+        }
+    }
     private fun onStartTest() {
         runTest()
     }
@@ -777,6 +917,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     }
 
     private fun runTest() {
+        mCallbackCount = 0
         mPlayAudioMonotonicCounter++ // Stop the previous audioStream
         mStartButtonEnabled.value = false
         mStopButtonEnabled.value = true
@@ -784,13 +925,21 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         mPlayButtonEnabled.value = false
         mSpinnersEnabled.value = false
 
+        if (mOutputLogFileName != null) {
+            val dir = getExternalFilesDir(Environment.DIRECTORY_MUSIC)
+            mOutputLogFile = mOutputLogFileName?.let { File(dir, it) }
+            mOutputLogFile?.writeText("")
+        } else {
+            mOutputLogFile = null
+        }
         val timestamp = getTimestampString()
         mOutputFile = createFile(timestamp, "wav")
+
         var encodedFormat = AUDIO_FORMAT_TO_MEDIA_MUXER_OUTPUT_FORMAT.get(mOutputFormatText.value)
         var mediaMuxer: MediaMuxer? = null
         if (encodedFormat != null) {
             val encodedFileExtension = MEDIA_MUXER_OUTPUT_FORMAT_TO_EXTENSION.get(encodedFormat)
-            mEncodedFile = createFile(timestamp, encodedFileExtension!!)
+            mEncodedFile = createFile(getTimestampString(), encodedFileExtension!!)
             mEncodedFileType = MEDIA_MUXER_OUTPUT_FORMAT_TO_STRING[encodedFormat].toString()
             mEncodedFileOutputStream = FileOutputStream(mEncodedFile)
             mediaMuxer = MediaMuxer(mEncodedFileOutputStream!!.fd, encodedFormat)
@@ -893,6 +1042,9 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         mInputFileStream?.close()
         mEncodedFileOutputStream?.close()
         mAudioEncoderDecoderFramework?.stop()
+        if (mAutoExit) {
+            finish()
+        }
     }
 
     private fun onShareOutputFile() {
@@ -943,7 +1095,20 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                 Arrays.toString(mAudioEncoderDecoderFramework?.harmonicAnalyzerSink?.mFundamentalBins),
                 mAudioEncoderDecoderFramework?.getInitialFrequencies().toString())
 
+            mOutputLogFile?.let {
+                it.appendText("onMeasurement: " + analysisCount + "\n")
+                it.appendText(mParam.value + "\n")
+                it.appendText(mStatus.value + "\n")
+                if (mTopFrequencies != null) {
+                    it.appendText("Top Frequencies: " + mTopFrequencies!!.joinToString() + "\n")
+                }
+            }
+
             if (results[0].endOfStream) {
+                onStopTest()
+            }
+            mCallbackCount++
+            if (mMaxCallbacks > 0 && mCallbackCount >= mMaxCallbacks) {
                 onStopTest()
             }
         }
@@ -1342,5 +1507,20 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         )
 
         private const val MIN_DECIBELS = -120F
+
+        const val INTENT_EXTRA_SOURCE = "source"
+        const val INTENT_EXTRA_INPUT_FILE = "input_file"
+        const val INTENT_EXTRA_OUTPUT_FILE = "output_file"
+        const val INTENT_EXTRA_CODEC_NAME = "codec_name"
+        const val INTENT_EXTRA_MIME_TYPE = "mime_type"
+        const val INTENT_EXTRA_SAMPLE_RATE = "sample_rate"
+        const val INTENT_EXTRA_CHANNEL_COUNT = "channel_count"
+        const val INTENT_EXTRA_BITRATE = "bitrate"
+        const val INTENT_EXTRA_AAC_PROFILE = "aac_profile"
+        const val INTENT_EXTRA_FLAC_COMPRESSION = "flac_compression"
+        const val INTENT_EXTRA_ENCODER_DELAY = "encoder_delay"
+        const val INTENT_EXTRA_COUNT = "count"
+        const val INTENT_EXTRA_AUTO_START = "auto_start"
+        const val INTENT_EXTRA_AUTO_EXIT = "auto_exit"
     }
 }
