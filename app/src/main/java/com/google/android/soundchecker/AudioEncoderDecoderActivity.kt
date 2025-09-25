@@ -993,7 +993,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
 
     private fun sineSweepOnMeasurement(analysisCount: Int, results: ArrayList<HarmonicAnalyzer.Result>) {
         if (mSpectrograms == null) {
-            mSpectrograms = mutableListOf<MutableList<FloatArray?>?>(mutableListOf<FloatArray?>())
+            mSpectrograms = mutableListOf<MutableList<FloatArray?>?>()
             for (channel in 0 until results.size) {
                 mSpectrograms!!.add(mutableListOf<FloatArray?>())
             }
