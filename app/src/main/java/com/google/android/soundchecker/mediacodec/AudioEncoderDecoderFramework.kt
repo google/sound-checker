@@ -27,18 +27,18 @@ import com.google.android.soundchecker.utils.WaveFileReader
 import com.google.android.soundchecker.utils.WaveFileSource
 import java.io.File
 
-class AudioEncoderDecoderFramework (codec: String, codecFormat: String, sampleRate: Int,
-                                    channelCount: Int, bitRate: Int, flacCompressionLevel: Int,
-                                    aacProfile: Int, pcmEncoding: Int,
+class AudioEncoderDecoderFramework (encoderName: String, decoderName: String, codecFormat: String,
+                                    sampleRate: Int, channelCount: Int, bitRate: Int,
+                                    flacCompressionLevel: Int, aacProfile: Int, pcmEncoding: Int,
                                     usePitchSweep: Boolean, outputFile: File,
                                     reader: WaveFileReader?, encodedDataMediaMuxer: MediaMuxer?,
                                     encoderDelay: Int) {
     private var mSineSource = MultiChannelSineSource()
     private var mWaveFileSource = WaveFileSource()
-    private var mAudioEncoderSource = AudioEncoderSource(codec, codecFormat, sampleRate,
+    private var mAudioEncoderSource = AudioEncoderSource(encoderName, codecFormat, sampleRate,
         channelCount, bitRate, flacCompressionLevel, aacProfile, pcmEncoding,
         encodedDataMediaMuxer)
-    private var mAudioDecoderSource = AudioDecoderSource(encoderDelay)
+    private var mAudioDecoderSource = AudioDecoderSource(decoderName, encoderDelay)
     var harmonicAnalyzerSink = AudioEncoderDecoderSink(outputFile)
     private var mInitialFrequencies = ArrayList<Float>()
 
