@@ -17,7 +17,7 @@
 package com.google.android.soundchecker.harmonicanalyzer
 
 import kotlin.math.abs
-import kotlin.math.ln
+import kotlin.math.log
 import kotlin.math.max
 import kotlin.math.sqrt
 
@@ -160,11 +160,11 @@ class HarmonicAnalyzer {
         private val TAG = "HarmonicAnalyzer"
         const val VERY_SMALL_NUMBER = 1.0e-12.toFloat()
         fun amplitudeToDecibels(amplitude: Double): Double {
-            return 20.0 * ln(amplitude)
+            return 20.0 * log(amplitude, 10.0)
         }
 
         fun powerToDecibels(amplitude: Double): Double {
-            return 10.0 * ln(amplitude)
+            return 10.0 * log(amplitude, 10.0)
         }
     }
 }
