@@ -154,11 +154,22 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
     }
 
     fun setOutputFormat(format: MediaFormat) {
+        val encoderInputChannelCount = mChannelCount
         mOutputFormat = format
         mSampleRate = mOutputFormat!!.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+        mChannelCount = mOutputFormat!!.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
         mFundamentalBins = IntArray(mChannelCount)
         for (channel in 0 until mChannelCount) {
-            mFundamentalBins!![channel] = calculateNearestBin(TARGET_FREQUENCY * (channel + 1))
+            if (channel >= encoderInputChannelCount) {
+                // Copy previous channel if the encoder output has more channels than the input.
+                // This is needed for mono HE AAC encoding. See b/458183612.
+                mFundamentalBins!![channel] = mFundamentalBins!![channel - 1]
+            } else {
+                mFundamentalBins!![channel] = calculateNearestBin(TARGET_FREQUENCY * (channel + 1))
+            }
+        }
+        if (mPcmEncoding != 0) {
+            mBuffer = ByteArray(mFftSize * mPcmEncoding.bytesPerSample() * mChannelCount)
         }
     }
 
