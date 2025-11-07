@@ -162,7 +162,7 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
         for (channel in 0 until mChannelCount) {
             if (channel >= encoderInputChannelCount) {
                 // Copy previous channel if the encoder output has more channels than the input.
-                // This is needed for mono HE AAC encoding. See b/458183612.
+                // This is needed for mono HE AAC decoding. See b/458183612.
                 mFundamentalBins!![channel] = mFundamentalBins!![channel - 1]
             } else {
                 mFundamentalBins!![channel] = calculateNearestBin(TARGET_FREQUENCY * (channel + 1))
