@@ -80,18 +80,17 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
         var count = 0
         while (mThread?.isEnabled() == true) {
             val audioSource = mAudioSource!!
-            val buffer = mBuffer!!
             // pull audio from source
             var bufferInfo = MediaCodec.BufferInfo()
-            bufferInfo = audioSource.pull(buffer.size, buffer)
-            //Log.d(TAG, "bufferSize: " + buffer.size)
-            //Log.d(TAG, "buffer: " + Arrays.toString(buffer))
+            bufferInfo = audioSource.pull(mBuffer!!.size, mBuffer!!)
+            //Log.d(TAG, "bufferSize: " + mBuffer!!.size)
+            //Log.d(TAG, "buffer: " + Arrays.toString(mBuffer))
             val floatArray = FloatArray(mFftSize * mChannelCount)
             //Log.d(TAG, "floatArray indices: " + floatArray.indices)
             if (mPcmEncoding == AudioFormat.ENCODING_PCM_FLOAT) {
-                byteArrayToFloatArray(buffer, floatArray)
+                byteArrayToFloatArray(mBuffer!!, floatArray)
             } else if (mPcmEncoding == AudioFormat.ENCODING_PCM_16BIT) {
-                i16ByteArrayToFloatArray(buffer, floatArray)
+                i16ByteArrayToFloatArray(mBuffer!!, floatArray)
             } else {
                 Log.d(TAG, "unsupported pcmEncoding: " + mPcmEncoding)
             }
@@ -104,7 +103,7 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
             Log.d(TAG, "fundamental bin: " + Arrays.toString(mFundamentalBins))
             Log.d(TAG, "mUseAnalyzer: " + mUseAnalyzer)
             Log.d(TAG, "outputSize: " + bufferInfo.size)
-            Log.d(TAG, "buffer.size: " + buffer.size)
+            Log.d(TAG, "mBuffer.size: " + mBuffer!!.size)
             val results = ArrayList<HarmonicAnalyzer.Result>()
             // Analyze it
             var result : HarmonicAnalyzer.Result = HarmonicAnalyzer.Result()
@@ -119,8 +118,8 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
                     }
                     result = mAnalyzer.analyze(mChannelArray, mFftSize, bin)
                 } else {
-                    result.buffer = mChannelArray
-                    result.endOfStream = (bufferInfo.size != buffer.size)
+                    result.buffer = mChannelArray.clone()
+                    result.endOfStream = (bufferInfo.size != mBuffer!!.size)
                 }
                 results.add(result)
             }
@@ -154,11 +153,21 @@ class AudioEncoderDecoderSink(outputFile: File): AudioSink() {
     }
 
     fun setOutputFormat(format: MediaFormat) {
+        val encoderInputChannelCount = mChannelCount
         mOutputFormat = format
         mSampleRate = mOutputFormat!!.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+        mChannelCount = mOutputFormat!!.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
         mFundamentalBins = IntArray(mChannelCount)
         for (channel in 0 until mChannelCount) {
-            mFundamentalBins!![channel] = calculateNearestBin(TARGET_FREQUENCY * (channel + 1))
+            if (channel >= encoderInputChannelCount) {
+                // Copy previous channel if the encoder output has more channels than the input.
+                mFundamentalBins!![channel] = mFundamentalBins!![channel - 1]
+            } else {
+                mFundamentalBins!![channel] = calculateNearestBin(TARGET_FREQUENCY * (channel + 1))
+            }
+        }
+        if (mPcmEncoding != 0) {
+            mBuffer = ByteArray(mFftSize * mPcmEncoding.bytesPerSample() * mChannelCount)
         }
     }
 

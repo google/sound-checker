@@ -44,6 +44,7 @@ class AudioEncoderDecoderFramework (encoderName: String, decoderName: String, co
 
     init {
         harmonicAnalyzerSink.mSampleRate = sampleRate
+        harmonicAnalyzerSink.mChannelCount = channelCount
         val fundamentalBins = IntArray(channelCount)
         for (channel in 0 until channelCount) {
             fundamentalBins[channel] = harmonicAnalyzerSink.calculateNearestBin(TARGET_FREQUENCY * (channel + 1))
@@ -73,7 +74,6 @@ class AudioEncoderDecoderFramework (encoderName: String, decoderName: String, co
         mAudioEncoderSource.setDecoder(mAudioDecoderSource)
         harmonicAnalyzerSink.setSource(mAudioDecoderSource)
         mAudioDecoderSource.setHarmonicAnalyzer(harmonicAnalyzerSink)
-        harmonicAnalyzerSink.mChannelCount = channelCount
         harmonicAnalyzerSink.mFundamentalBins = fundamentalBins
         harmonicAnalyzerSink.mUseAnalyzer = (reader == null)
         harmonicAnalyzerSink.mUseFundamentalBin = (reader == null) && !usePitchSweep
