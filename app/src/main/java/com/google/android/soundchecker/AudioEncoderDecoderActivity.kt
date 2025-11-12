@@ -541,7 +541,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                                         text = { Text(bin) },
                                         onClick = {
                                             mSelectedDecoder = mAudioDecoders!![index]
-                                            mEncoderText.value = mAudioDecoderStrings!![index]
+                                            mDecoderText.value = mAudioDecoderStrings!![index]
                                             updateDecoderStatus()
                                             expanded = false
                                         },
