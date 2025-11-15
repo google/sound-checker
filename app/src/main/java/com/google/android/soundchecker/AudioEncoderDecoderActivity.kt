@@ -1344,8 +1344,10 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                 }
             }
         }
-        if (mAvailableOutputFormats!!.contains(AUDIO_FORMAT_AAC)) {
-            mAvailableOutputFormats!!.add(AUDIO_FORMAT_XHE_AAC)
+        mAvailableOutputFormats?.let {
+            if (it.contains(AUDIO_FORMAT_AAC)) {
+                it.add(AUDIO_FORMAT_XHE_AAC)
+            }
         }
         mOutputFormatText.value = mAvailableOutputFormats!!.get(0)
         updateSelectedFormat()
@@ -1461,6 +1463,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         updateEncoderStatus()
         updateCodecSpecificSpinnerValues()
 
+        // TODO: Consider adding an alias function if we need more exceptions.
         var decoderSearchType = encoderType
         if (encoderType == AUDIO_FORMAT_XHE_AAC) {
             decoderSearchType = AUDIO_FORMAT_AAC
@@ -1480,7 +1483,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                         if (decoderAudioCapabilities != null) {
                             if (mInputFile == null || isFormatSupported(info, decoderType,
                                     mInputFileSampleRate, mInputFileNumChannels)) {
-                                mAudioDecoders!!.add(info)
+                                mAudioDecoders?.add(info)
                                 mAudioDecoderStrings!!.add(info.name)
                                 break
                             }
@@ -1637,7 +1640,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         private const val INITIAL_FREQUENCIES_TO_PRINT = 5
         private val AUDIO_FORMAT_FLAC = MediaFormat.MIMETYPE_AUDIO_FLAC
         private val AUDIO_FORMAT_AAC = MediaFormat.MIMETYPE_AUDIO_AAC
-        private val AUDIO_FORMAT_XHE_AAC = "audio/mp4a.40.42"
+        private val AUDIO_FORMAT_XHE_AAC = "audio/mp4a.40.42" // TODO: Replace with MediaFormat.MIMETYPE_AUDIO_XHE_AAC
         private val DEFAULT_SAMPLE_RATES = listOf(8000, 16000, 32000, 44100, 48000, 96000, 192000)
         private val DEFAULT_BITRATES = listOf(6000, 10000, 20000, 64000, 128000)
         // Arbitrary list of encoder delays in frames. These are used by the decoders to clip the early frames
