@@ -51,7 +51,7 @@ class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate:
         } else {
             outputFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
         }
-        if (codecFormat == MediaFormat.MIMETYPE_AUDIO_AAC) {
+        if (codecFormat == MediaFormat.MIMETYPE_AUDIO_AAC || codecFormat == "audio/mp4a.40.42") {
             outputFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, aacProfile)
         }
         outputFormat.setInteger(MediaFormat.KEY_PCM_ENCODING, pcmEncoding)

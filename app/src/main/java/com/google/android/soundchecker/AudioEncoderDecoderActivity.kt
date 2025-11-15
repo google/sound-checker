@@ -318,7 +318,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                             )
                         }
                     }
-                    if (mOutputFormatText.value == AUDIO_FORMAT_AAC) {
+                    if (mOutputFormatText.value == AUDIO_FORMAT_AAC || mOutputFormatText.value == AUDIO_FORMAT_XHE_AAC) {
                         Spacer(modifier = Modifier.padding(4.dp))
                         Row {
                             Text(text = "AAC profile")
@@ -1344,6 +1344,11 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                 }
             }
         }
+        mAvailableOutputFormats?.let {
+            if (it.contains(AUDIO_FORMAT_AAC)) {
+                it.add(AUDIO_FORMAT_XHE_AAC)
+            }
+        }
         mOutputFormatText.value = mAvailableOutputFormats!!.get(0)
         updateSelectedFormat()
     }
@@ -1458,6 +1463,11 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         updateEncoderStatus()
         updateCodecSpecificSpinnerValues()
 
+        // TODO: Consider adding an alias function if we need more exceptions.
+        var decoderSearchType = encoderType
+        if (encoderType == AUDIO_FORMAT_XHE_AAC) {
+            decoderSearchType = AUDIO_FORMAT_AAC
+        }
         mAudioDecoders = mutableListOf<MediaCodecInfo>()
         mAudioDecoderStrings = mutableListOf<String>()
         val mediaCodecList = MediaCodecList(MediaCodecList.REGULAR_CODECS)
@@ -1465,7 +1475,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         for (info in mediaCodecInfos) {
             if (!info.isEncoder) {
                 for (decoderType in info.getSupportedTypes()) {
-                    if (decoderType == encoderType) {
+                    if (decoderType == decoderSearchType) {
                         val decoderCodecCapabilities: MediaCodecInfo.CodecCapabilities =
                             info.getCapabilitiesForType(decoderType)
                         val decoderAudioCapabilities: MediaCodecInfo.AudioCapabilities? =
@@ -1473,7 +1483,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                         if (decoderAudioCapabilities != null) {
                             if (mInputFile == null || isFormatSupported(info, decoderType,
                                     mInputFileSampleRate, mInputFileNumChannels)) {
-                                mAudioDecoders!!.add(info)
+                                mAudioDecoders?.add(info)
                                 mAudioDecoderStrings!!.add(info.name)
                                 break
                             }
@@ -1482,8 +1492,13 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
                 }
             }
         }
-        mSelectedDecoder = mAudioDecoders!!.get(0)
-        mDecoderText.value = mAudioDecoderStrings!!.get(0)
+        if (mAudioDecoders!!.isNotEmpty()) {
+            mSelectedDecoder = mAudioDecoders!!.get(0)
+            mDecoderText.value = mAudioDecoderStrings!!.get(0)
+        } else {
+            mSelectedDecoder = null
+            mDecoderText.value = "No decoder found"
+        }
         updateDecoderStatus()
     }
 
@@ -1625,6 +1640,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         private const val INITIAL_FREQUENCIES_TO_PRINT = 5
         private val AUDIO_FORMAT_FLAC = MediaFormat.MIMETYPE_AUDIO_FLAC
         private val AUDIO_FORMAT_AAC = MediaFormat.MIMETYPE_AUDIO_AAC
+        private val AUDIO_FORMAT_XHE_AAC = "audio/mp4a.40.42" // TODO: Replace with MediaFormat.MIMETYPE_AUDIO_XHE_AAC
         private val DEFAULT_SAMPLE_RATES = listOf(8000, 16000, 32000, 44100, 48000, 96000, 192000)
         private val DEFAULT_BITRATES = listOf(6000, 10000, 20000, 64000, 128000)
         // Arbitrary list of encoder delays in frames. These are used by the decoders to clip the early frames
@@ -1635,6 +1651,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
         private val SPECTOGRAM_WIDTH = 300
         private val AUDIO_FORMAT_TO_MEDIA_MUXER_OUTPUT_FORMAT = mapOf(
                 MediaFormat.MIMETYPE_AUDIO_AAC to MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4,
+                AUDIO_FORMAT_XHE_AAC to MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4,
                 MediaFormat.MIMETYPE_AUDIO_AMR_NB to MediaMuxer.OutputFormat.MUXER_OUTPUT_3GPP,
                 MediaFormat.MIMETYPE_AUDIO_AMR_WB to MediaMuxer.OutputFormat.MUXER_OUTPUT_3GPP,
                 MediaFormat.MIMETYPE_AUDIO_OPUS to MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG,
