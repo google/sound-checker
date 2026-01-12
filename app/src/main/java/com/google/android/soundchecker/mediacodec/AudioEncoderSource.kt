@@ -111,7 +111,6 @@ class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate:
 
     override fun pull(numBytes: Int, buffer: ByteArray): MediaCodec.BufferInfo {
         Trace.beginSection("AudioEncoderSource#pull")
-        try {
         Log.i(TAG, "pulling " + numBytes)
         if (buffer.isEmpty()) {
             Log.i(TAG, "The buffer is empty, do nothing")
@@ -192,9 +191,7 @@ class AudioEncoderSource(val codec: String, val codecFormat: String, sampleRate:
                 return bufferInfo
             }
         }
-        } finally {
-            Trace.endSection()
-        }
+        Trace.endSection()
     }
 
     companion object {

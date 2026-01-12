@@ -1115,7 +1115,6 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
     private inner class MyHarmonicAnalyzerListener : HarmonicAnalyzerListener {
         override fun onMeasurement(analysisCount: Int, results: ArrayList<HarmonicAnalyzer.Result>) {
             Trace.beginSection("AudioEncoderDecoderActivity#onMeasurement")
-            try {
             val numberOfChannels = results.size
             val numberOfSamples = results[0].buffer!!.size
             val numberOfFrames = numberOfSamples / numberOfChannels
@@ -1170,9 +1169,7 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
             if (mMaxCallbacks > 0 && mCallbackCount >= mMaxCallbacks) {
                 onStopTest()
             }
-            } finally {
-                Trace.endSection()
-            }
+            Trace.endSection()
         }
     }
 

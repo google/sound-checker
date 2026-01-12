@@ -132,7 +132,6 @@ class AudioDecoderSource(val codecName: String, val encoderDelay: Int) : AudioSo
 
     override fun pull(numBytes: Int, buffer: ByteArray): MediaCodec.BufferInfo {
         Trace.beginSection("AudioDecoderSource#pull")
-        try {
         Log.i(TAG, "pulling " + numBytes)
         if (buffer.isEmpty()) {
             Log.i(TAG, "The buffer is empty, do nothing")
@@ -261,9 +260,7 @@ class AudioDecoderSource(val codecName: String, val encoderDelay: Int) : AudioSo
                 outputIndex = decoder!!.dequeueOutputBuffer(bufferInfo, TIMEOUT_MICROSECONDS)
             }
         }
-        } finally {
-            Trace.endSection()
-        }
+        Trace.endSection()
     }
 
     companion object {
