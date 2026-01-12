@@ -29,6 +29,7 @@ import android.media.MediaCodecList
 import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.media.MediaScannerConnection
+import android.os.Trace
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -1113,6 +1114,8 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
 
     private inner class MyHarmonicAnalyzerListener : HarmonicAnalyzerListener {
         override fun onMeasurement(analysisCount: Int, results: ArrayList<HarmonicAnalyzer.Result>) {
+            Trace.beginSection("AudioEncoderDecoderActivity#onMeasurement")
+            try {
             val numberOfChannels = results.size
             val numberOfSamples = results[0].buffer!!.size
             val numberOfFrames = numberOfSamples / numberOfChannels
@@ -1166,6 +1169,9 @@ class AudioEncoderDecoderActivity : ComponentActivity() {
             mCallbackCount++
             if (mMaxCallbacks > 0 && mCallbackCount >= mMaxCallbacks) {
                 onStopTest()
+            }
+            } finally {
+                Trace.endSection()
             }
         }
     }
