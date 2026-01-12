@@ -20,6 +20,7 @@ import android.media.AudioFormat
 import android.media.MediaCodec
 import android.media.MediaCodecList
 import android.media.MediaFormat
+import android.os.Trace
 import android.util.Log
 import com.google.android.soundchecker.utils.AudioSource
 import java.nio.ByteBuffer
@@ -130,6 +131,8 @@ class AudioDecoderSource(val codecName: String, val encoderDelay: Int) : AudioSo
     }
 
     override fun pull(numBytes: Int, buffer: ByteArray): MediaCodec.BufferInfo {
+        Trace.beginSection("AudioDecoderSource#pull")
+        try {
         Log.i(TAG, "pulling " + numBytes)
         if (buffer.isEmpty()) {
             Log.i(TAG, "The buffer is empty, do nothing")
@@ -257,6 +260,9 @@ class AudioDecoderSource(val codecName: String, val encoderDelay: Int) : AudioSo
                 decoder!!.releaseOutputBuffer(outputIndex, false)
                 outputIndex = decoder!!.dequeueOutputBuffer(bufferInfo, TIMEOUT_MICROSECONDS)
             }
+        }
+        } finally {
+            Trace.endSection()
         }
     }
 
